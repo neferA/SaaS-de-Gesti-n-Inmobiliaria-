@@ -15,7 +15,6 @@ export class RequestFiltersDto {
   @Type(() => Number)
   limit?: number = 10;
 
-  // 👇 NUEVO CAMPO DE BÚSQUEDA
   @IsOptional()
   @IsString()
   search?: string;

@@ -42,3 +42,122 @@ model Role {
 
   @@map("roles")
 }
+// ==========================================
+// 2. MÓDULO INMOBILIARIO (Negocio)
+// ==========================================
+
+// Enums para estandarizar la data
+enum UnitType {
+  DEPARTAMENTO // Para los 11 dptos
+  CUARTO       // Para los 3 cuartos
+}
+
+enum TransactionType {
+  INGRESO // Dinero que entra (Alquileres)
+  GASTO   // Dinero que sale (Servicios, arreglos)
+}
+
+// Aquí definimos los "Centros de Costo" exactos que pediste
+enum ExpenseCategory {
+  ALQUILER_MENSUAL        // Ingreso estándar
+  GARANTIA                // Ingreso por depósito
+  AGUA_MEDIDOR_1          // Gasto: Factura 1 (15 días)
+  AGUA_MEDIDOR_2          // Gasto: Factura 2 (Resto mes)
+  LUZ_GENERAL             // Gasto
+  INTERNET                // Gasto
+  MANTENIMIENTO_GENERAL   // Gasto
+  OTROS
+}
+
+model Unit {
+  id          String   @id @default(uuid())
+  name        String   // Ej: "Dpto 1", "Cuarto Azul"
+  type        UnitType
+  basePrice   Decimal  @db.Decimal(10, 2) // Precio base sugerido
+  
+  // Estado actual: ¿Está ocupado?
+  isOccupied  Boolean  @default(false)
+  
+  leases      Lease[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("units")
+}
+
+model Tenant {
+  id          String   @id @default(uuid())
+  fullName    String
+  ci          String   @unique // Cédula de identidad
+  phone       String?
+  
+  // Relación con contratos
+  leases      Lease[]  
+  // NOTA: No relacionamos 'Transaction' aquí para permitir el Hard Delete seguro.
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tenants")
+}
+
+model Lease {
+  id          String    @id @default(uuid())
+  unitId      String
+  tenantId    String
+  
+  startDate   DateTime
+  endDate     DateTime? 
+  isActive    Boolean   @default(true)
+  price       Decimal   @db.Decimal(10, 2) // Precio pactado final
+
+  unit        Unit      @relation(fields: [unitId], references: [id])
+  // ON DELETE CASCADE: Si borras al Tenant, se borra el contrato automáticamente.
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("leases")
+}
+
+// ==========================================
+// 3. MÓDULO FINANCIERO (Caja)
+// ==========================================
+
+model Transaction {
+  id          String             @id @default(uuid())
+  type        TransactionType    // INGRESO o GASTO
+  category    ExpenseCategory?    // Para saber si es Agua Medidor 1 o 2, etc.
+  
+  amount      Decimal            @db.Decimal(10, 2)
+  date        DateTime           @default(now()) // Fecha contable
+  
+  // Aquí guardamos el detalle histórico. 
+  // Ej: "Cobro Alquiler Dpto 1 - Juan Perez"
+  // Al ser texto plano, sobrevive al borrado del usuario.
+  description String             
+
+  createdAt   DateTime           @default(now())
+
+  @@map("transactions")
+}
+model RentalHistory {
+  id          String   @id @default(uuid())
+  
+  // Guardamos datos "congelados" (Snapshot)
+  unitName    String   // Ej: "Dpto A" (Guardamos el nombre, por si la Unit cambia o se borra)
+  tenantName  String   // Ej: "Juan Perez"
+  tenantCi    String   // Cédula, útil para saber si un mal inquilino vuelve
+  
+  startDate   DateTime
+  endDate     DateTime // Fecha en que se fue (Check-out)
+  
+  // Opcional: ¿Por qué se fue? o ¿En qué estado dejó el cuarto?
+  notes       String?  // Ej: "Se fue debiendo luz" o "Todo ok"
+  
+  createdAt   DateTime @default(now())
+
+  @@map("rental_histories")
+}
