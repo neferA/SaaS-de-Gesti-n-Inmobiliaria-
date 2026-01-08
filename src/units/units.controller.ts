@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { UnitsService } from './units.service';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('units')
+@UseGuards(AuthGuard('jwt')) // 
 export class UnitsController {
   constructor(private readonly unitsService: UnitsService) {}
 

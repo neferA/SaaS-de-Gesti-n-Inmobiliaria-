@@ -1,11 +1,13 @@
-import { Controller, Patch, Post, Get, Delete, Body, ParseUUIDPipe, Param, Query } from '@nestjs/common';
+import { Controller, Patch, Post, Get, Delete, Body, ParseUUIDPipe, Param, Query, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RequestFiltersDto } from '../common/dto/request-filters.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('users')
+@UseGuards(AuthGuard('jwt'))
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

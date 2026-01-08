@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TransactionType } from '@prisma/client';
+import { EventsGateway } from 'src/events/events.gateway';
 
 @Injectable()
 export class TransactionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly eventsGateway: EventsGateway) {}
 
-  // 1. REGISTRAR MOVIMIENTO (Ingreso o Gasto)
   async create(createTransactionDto: CreateTransactionDto) {
     const { date, category, ...rest } = createTransactionDto;
 
@@ -20,7 +20,7 @@ export class TransactionsService {
         date: date ? new Date(date) : new Date(),
       },
     });
-
+    this.eventsGateway?.server?.emit('new-transaction', transaction);
     return {
       message: 'Movimiento registrado correctamente',
       data: transaction

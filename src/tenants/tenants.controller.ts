@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { CheckoutTenantDto } from './dto/checkout-tenant.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('tenants')
+@UseGuards(AuthGuard('jwt'))
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 

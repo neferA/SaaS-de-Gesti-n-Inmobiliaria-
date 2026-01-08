@@ -11,7 +11,7 @@ export class UsersService {
     constructor(private readonly prisma: PrismaService){}
         
     async findAll(filters: RequestFiltersDto) {
-    const { page = 1, limit = 10, search } = filters;
+    const { page = 1, limit = 10, search } = filters; 
     const skip = (page - 1) * limit;
 
     // filtro dinámico
