@@ -5,6 +5,10 @@ import { Login } from "@/modules/auth/components/login";
 import { DashboardPage } from "@/modules/dashboard/components/dashboard-page";
 import { TenantsPage } from "@/modules/tenants/components/tenants-page";
 import { TransactionsPage } from "@/modules/transactions/components/transactions-page";
+import { Register } from "@/modules/auth/components/register";
+import { UsersPage } from "@/modules/users/components/users-page";
+import { UnitsPage } from "@/modules/units/components/units-page";
+import { HistoryPage } from "@/modules/history/components/history-page";
 
 export const router = createBrowserRouter([
   // 1. Redirección Raíz: Si entran a "/", los mandamos al login
@@ -19,12 +23,14 @@ export const router = createBrowserRouter([
     path: "/auth",
     element: <AuthLayout />,
     children: [
-      {
+        {
         path: "login",
         element: <Login />, // Ahora sí encontrará el componente
-      
-      },
-      // Aquí podrías agregar "register" o "forgot-password" en el futuro
+        },
+        {
+            path: "register", // Nueva ruta
+            element: <Register />,
+        },
     ],
   },
 
@@ -46,6 +52,18 @@ export const router = createBrowserRouter([
         path: "transactions",
         element: <TransactionsPage />,
       },
+      {
+        path: "units",
+        element: <UnitsPage />,
+      },
+      {
+        path: "users",
+        element: <UsersPage />,
+        },
+        {
+        path: "history",
+        element: <HistoryPage />,
+        },
     ],
   },
   

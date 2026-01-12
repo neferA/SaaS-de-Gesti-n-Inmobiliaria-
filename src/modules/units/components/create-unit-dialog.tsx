@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { PlusCircle, Loader2 } from "lucide-react"
+import { Loader2, Building } from "lucide-react"
 
 import { Button } from "@/modules/core/components/button"
 import {
@@ -16,38 +16,35 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/modules/core/components/select"
 
-// 1. SCHEMA AJUSTADO A PRISMA (Modelo Transaction)
+// 1. SCHEMA AJUSTADO A PRISMA (Modelo Unit)
 const formSchema = z.object({
-  amount: z.coerce.number().min(1, "El monto es requerido"),
-  description: z.string().min(3, "Describe el movimiento"), // BD: description
-  type: z.enum(["INGRESO", "GASTO"]),                       // BD: TransactionType
-  category: z.enum([                                        // BD: ExpenseCategory
-    "ALQUILER_MENSUAL", 
-    "GARANTIA", 
-    "AGUA_MEDIDOR_1", 
-    "AGUA_MEDIDOR_2", 
-    "LUZ_GENERAL", 
-    "INTERNET", 
-    "MANTENIMIENTO_GENERAL", 
-    "OTROS"
-  ]).optional(),
+  name: z.string().min(2, "Ej: Dpto 101"),
+  type: z.enum(["DEPARTAMENTO", "CUARTO"]), // Coincide con tu Enum UnitType exacto
+  basePrice: z.coerce.number().min(1),       // BD: basePrice (Decimal)
+  isOccupied: z.string(),                    // BD: isOccupied (Boolean) - Lo manejamos como string en el select y convertimos luego
 })
 
-export const CreateTransactionDialog = () => {
+export const CreateUnitDialog = () => {
   const [open, setOpen] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: 0,
-      type: "INGRESO",
-      category: "ALQUILER_MENSUAL",
-      description: "",
+      name: "",
+      type: "DEPARTAMENTO",
+      basePrice: 0,
+      isOccupied: "false", // "false" string para el select
     },
   })
 
   function onSubmit(values: any) {
-    console.log("Datos exactos para Prisma Transaction:", values)
+    // Conversión final antes de enviar al backend
+    const payload = {
+        ...values,
+        isOccupied: values.isOccupied === "true" // Convertimos string a boolean real
+    }
+    console.log("Datos exactos para Prisma Unit:", payload)
+    
     setTimeout(() => {
         setOpen(false)
         form.reset()
@@ -57,56 +54,48 @@ export const CreateTransactionDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 gap-2">
-          <PlusCircle className="h-4 w-4" /> Registrar Pago
+          <Building className="h-4 w-4" /> Nueva Unidad
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
-          <DialogTitle>Nuevo Movimiento</DialogTitle>
-          <DialogDescription>Registra un ingreso o gasto financiero.</DialogDescription>
+          <DialogTitle>Registrar Unidad</DialogTitle>
+          <DialogDescription>Añade un departamento o habitación al inventario.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
             <div className="grid grid-cols-2 gap-4">
-                {/* Tipo de Transacción */}
+                {/* Nombre */}
                 <FormField
                 control={form.control}
-                name="type"
+                name="name"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Tipo</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        <SelectItem value="INGRESO">🟢 Ingreso (+)</SelectItem>
-                        <SelectItem value="GASTO">🔴 Gasto (-)</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <FormLabel>Nombre / N°</FormLabel>
+                    <FormControl>
+                        <Input placeholder="Ej: Dpto 101" {...field} />
+                    </FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
                 />
 
-                {/* Monto */}
+                {/* Precio Base */}
                 <FormField
                 control={form.control}
-                name="amount"
+                name="basePrice"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Monto (Bs)</FormLabel>
+                    <FormLabel>Precio Base (Bs)</FormLabel>
                     <FormControl>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
+                        <Input 
+                            type="number" 
+                            placeholder="0.00" 
                             {...field}
                             value={field.value as number}
-                            onChange={(e) => field.onChange(e.target.value)} 
+                            onChange={(e) => field.onChange(e.target.value)}
                         />
                     </FormControl>
                     <FormMessage />
@@ -115,28 +104,22 @@ export const CreateTransactionDialog = () => {
                 />
             </div>
 
-            {/* Categoría (Centros de Costo) */}
+            {/* Tipo (Enum Exacto) */}
             <FormField
               control={form.control}
-              name="category"
+              name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoría / Concepto</FormLabel>
+                  <FormLabel>Tipo de Propiedad</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccione concepto" />
+                        <SelectValue placeholder="Seleccione" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="ALQUILER_MENSUAL">Alquiler Mensual</SelectItem>
-                      <SelectItem value="GARANTIA">Garantía</SelectItem>
-                      <SelectItem value="AGUA_MEDIDOR_1">Agua (Medidor 1)</SelectItem>
-                      <SelectItem value="AGUA_MEDIDOR_2">Agua (Medidor 2)</SelectItem>
-                      <SelectItem value="LUZ_GENERAL">Luz General</SelectItem>
-                      <SelectItem value="INTERNET">Internet</SelectItem>
-                      <SelectItem value="MANTENIMIENTO_GENERAL">Mantenimiento</SelectItem>
-                      <SelectItem value="OTROS">Otros</SelectItem>
+                      <SelectItem value="DEPARTAMENTO">Departamento</SelectItem>
+                      <SelectItem value="CUARTO">Cuarto / Habitación</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -144,16 +127,24 @@ export const CreateTransactionDialog = () => {
               )}
             />
 
-            {/* Descripción (Texto plano para detalles extra) */}
+            {/* Estado (Boolean) */}
             <FormField
               control={form.control}
-              name="description"
+              name="isOccupied"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción Detallada</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Pago alquiler Dpto 1 Enero - QR" {...field} />
-                  </FormControl>
+                  <FormLabel>Estado Inicial</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="false">🟢 Disponible (Vacío)</SelectItem>
+                      <SelectItem value="true">🔵 Ocupado</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -162,7 +153,7 @@ export const CreateTransactionDialog = () => {
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Movimiento
+                Guardar Unidad
               </Button>
             </DialogFooter>
           </form>

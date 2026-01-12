@@ -2,41 +2,23 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, CreditCard, Phone, User } from "lucide-react" // Agregué icono CreditCard para CI
 
 import { Button } from "@/modules/core/components/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/modules/core/components/dialog"
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/modules/core/components/form"
 import { Input } from "@/modules/core/components/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/modules/core/components/select"
 
+// 1. SCHEMA AJUSTADO A PRISMA (Modelo Tenant)
 const formSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Correo electrónico inválido"),
-  phone: z.string().min(6, "El teléfono debe tener al menos 6 dígitos"),
-  unit: z.string().min(1, "Debes asignar una unidad o departamento"),
-  status: z.enum(["active", "inactive"]),
+  fullName: z.string().min(3, "Nombre completo requerido"), // BD: fullName
+  ci: z.string().min(5, "El CI es obligatorio"),            // BD: ci (Unique)
+  phone: z.string().optional(),                             // BD: phone (Opcional)
+  // Eliminamos 'email' y 'unit' porque el tenant se crea primero, luego se asigna contrato
 })
 
 export const CreateTenantDialog = () => {
@@ -45,16 +27,14 @@ export const CreateTenantDialog = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      email: "",
+      fullName: "",
+      ci: "",
       phone: "",
-      unit: "",
-      status: "active",
     },
   })
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("Nuevo Inquilino:", values)
+    console.log("Datos exactos para Prisma Tenant:", values)
     setTimeout(() => {
       setOpen(false)
       form.reset()
@@ -63,44 +43,33 @@ export const CreateTenantDialog = () => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {/* CORRECCIÓN AQUÍ: El Trigger ahora es el botón directamente */}
       <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 gap-2">
           <Plus className="h-4 w-4" /> Nuevo Inquilino
       </DialogTrigger>
 
-        <DialogContent className="sm:max-w-106.25">
-          <DialogHeader>
+      <DialogContent className="sm:max-w-106.25">
+        <DialogHeader>
           <DialogTitle>Registrar Inquilino</DialogTitle>
           <DialogDescription>
-            Ingresa los datos del nuevo residente. Click en guardar para finalizar.
+            Datos personales del residente (Tal cual su documento).
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
+            {/* Nombre Completo */}
             <FormField
               control={form.control}
-              name="name"
+              name="fullName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nombre Completo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Juan Pérez" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Correo Electrónico</FormLabel>
-                  <FormControl>
-                    <Input placeholder="juan@ejemplo.com" {...field} />
+                    <div className="relative">
+                        <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Ej: Juan Pérez" className="pl-9" {...field} />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -108,56 +77,42 @@ export const CreateTenantDialog = () => {
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
+                {/* CI (Nuevo Campo Obligatorio) */}
+                <FormField
+                control={form.control}
+                name="ci"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Cédula (CI)</FormLabel>
+                    <FormControl>
+                        <div className="relative">
+                            <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="123456 SC" className="pl-9" {...field} />
+                        </div>
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+
+                {/* Teléfono */}
+                <FormField
                 control={form.control}
                 name="phone"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
+                    <FormItem>
+                    <FormLabel>Teléfono / Celular</FormLabel>
                     <FormControl>
-                      <Input placeholder="70012345" {...field} />
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="70012345" className="pl-9" {...field} />
+                        </div>
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
+                    </FormItem>
                 )}
-              />
-
-              <FormField
-                control={form.control}
-                name="unit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unidad/Dpto</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej: 101" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                />
             </div>
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado Inicial</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un estado" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="active">Activo</SelectItem>
-                      <SelectItem value="inactive">Inactivo (Reserva)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>

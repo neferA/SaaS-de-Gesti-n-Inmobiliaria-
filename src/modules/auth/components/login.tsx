@@ -121,11 +121,14 @@ export const Login = () => {
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="justify-center">
-        <p className="text-xs text-muted-foreground">
-          Sistema protegido v1.0
-        </p>
-      </CardFooter>
+     <CardFooter className="flex flex-col space-y-2 justify-center">
+      <p className="text-sm text-muted-foreground">
+        ¿No tienes cuenta?{" "}
+        <Link to="/auth/register" className="text-primary hover:underline font-medium">
+          Regístrate aquí
+        </Link>
+      </p>
+    </CardFooter>
     </Card>
   )
 }

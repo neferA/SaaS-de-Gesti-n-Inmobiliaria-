@@ -1,14 +1,17 @@
-import { Link, Outlet, useLocation } from "react-router"
+import { Link, Outlet, useLocation } from "react-router" // O 'react-router' según tu versión
 import {
   Home,
   Menu,
-  Users,
+  Users, 
+  DoorOpen,
+  History,
   CreditCard,
   Building2,
-  LogOut
+  LogOut,
+  UserCog 
 } from "lucide-react"
 
-import { Button } from "../components/button"
+import { Button } from "@/modules/core/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,16 +19,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../components/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "../components/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "../components/avatar"
+} from "@/modules/core/components/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger } from "@/modules/core/components/sheet"
+import { Avatar, AvatarFallback, AvatarImage } from "@/modules/core/components/avatar"
 
 export const AdminLayout = () => {
   const location = useLocation();
 
   // Función auxiliar para resaltar el link activo
   const getLinkClass = (path: string) => {
-    const isActive = location.pathname === path;
+    // Verificamos si la ruta actual empieza con el path (para mantener activo si entras a subrutas)
+    const isActive = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path));
+    
     return `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
       isActive ? "bg-muted text-primary" : "text-muted-foreground"
     }`;
@@ -49,17 +54,32 @@ export const AdminLayout = () => {
           {/* Menú de Navegación */}
           <div className="flex-1">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+              
               <Link to="/dashboard" className={getLinkClass("/dashboard")}>
                 <Home className="h-4 w-4" />
                 Dashboard
               </Link>
+              
               <Link to="/dashboard/tenants" className={getLinkClass("/dashboard/tenants")}>
                 <Users className="h-4 w-4" />
                 Inquilinos
               </Link>
+              
               <Link to="/dashboard/transactions" className={getLinkClass("/dashboard/transactions")}>
                 <CreditCard className="h-4 w-4" />
                 Transacciones
+              </Link>
+              <Link to="/dashboard/units" className={getLinkClass("/dashboard/units")}>
+                  <DoorOpen className="h-4 w-4" />
+                  Unidades
+              </Link>
+              <Link to="/dashboard/history" className={getLinkClass("/dashboard/history")}>
+                <History className="h-4 w-4" />
+                Historial
+              </Link>
+              <Link to="/dashboard/users" className={getLinkClass("/dashboard/users")}>
+                <UserCog className="h-4 w-4" />
+                Usuarios Admin
               </Link>
             </nav>
           </div>
@@ -86,34 +106,54 @@ export const AdminLayout = () => {
                   <Building2 className="h-6 w-6" />
                   <span className="sr-only">Gestión Alquileres</span>
                 </Link>
+                
                 <Link to="/dashboard" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <Home className="h-5 w-5" />
                   Dashboard
                 </Link>
+                
                 <Link to="/dashboard/tenants" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <Users className="h-5 w-5" />
                   Inquilinos
                 </Link>
+                
                 <Link to="/dashboard/transactions" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <CreditCard className="h-5 w-5" />
                   Transacciones
                 </Link>
+
+                <Link to="/dashboard/units" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
+                  <CreditCard className="h-5 w-5" />
+                  Unidades
+                </Link>
+                
+                <Link to="/dashboard/history" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
+                  <UserCog className="h-5 w-5" />
+                  Historial
+                </Link>
+                
+                <Link to="/dashboard/users" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
+                  <UserCog className="h-5 w-5" />
+                  Usuarios Admin
+                </Link>
+                
+                
               </nav>
             </SheetContent>
           </Sheet>
 
-          {/* Espaciador para empujar el menú de usuario a la derecha */}
+          {/* Espaciador */}
           <div className="w-full flex-1">
-            {/* Aquí podrías poner una barra de búsqueda si quisieras */}
+            {/* Buscador opcional */}
           </div>
 
-          {/* Menú de Usuario (Dropdown) */}
+          {/* Menú de Usuario */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
-                    <AvatarImage src="" /> {/* Aquí iría la URL de la foto */}
-                    <AvatarFallback>CN</AvatarFallback> {/* Iniciales */}
+                    <AvatarImage src="" />
+                    <AvatarFallback>CN</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
@@ -132,9 +172,8 @@ export const AdminLayout = () => {
           </DropdownMenu>
         </header>
 
-        {/* 3. CONTENIDO DINÁMICO (Outlet) */}
+        {/* 3. CONTENIDO DINÁMICO */}
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-slate-50/50">
-           {/* Aquí se renderizarán las páginas hijas (DashboardHome, Tenants, etc.) */}
            <Outlet />
         </main>
       </div>

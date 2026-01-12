@@ -1,61 +1,38 @@
-import { Search, MoreHorizontal, FileEdit, Trash2, Phone } from "lucide-react"
+import { Search, MoreHorizontal, FileEdit, Trash2, Phone, CreditCard } from "lucide-react"
 
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
-import { Badge } from "@/modules/core/components/badge" 
-import { CreateTenantDialog } from "./create-tenant-dialog"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/modules/core/components/table"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/modules/core/components/dropdown-menu"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/modules/core/components/card"
 
-// Datos de prueba (Mock Data)
+import { CreateTenantDialog } from "./create-tenant-dialog"
+
+// Mock Data ajustado a tu Modelo Prisma (Tenant)
 const tenants = [
   {
     id: "1",
-    name: "Juan Pérez",
-    email: "juan.perez@gmail.com",
+    fullName: "Juan Pérez",
+    ci: "5423123 SC",
     phone: "707-12345",
-    unit: "Dpto 101",
-    status: "active", // active, late, inactive
-    entryDate: "2023-05-01",
   },
   {
     id: "2",
-    name: "María Gonzales",
-    email: "maria.g@hotmail.com",
+    fullName: "María Gonzales",
+    ci: "8977654 CB",
     phone: "654-98765",
-    unit: "Dpto 102",
-    status: "late",
-    entryDate: "2023-08-15",
   },
   {
     id: "3",
-    name: "Carlos Ruiz",
-    email: "carlos.ruiz@yahoo.com",
+    fullName: "Carlos Ruiz",
+    ci: "1122334 LP",
     phone: "777-55555",
-    unit: "Habitación 3",
-    status: "inactive",
-    entryDate: "2022-01-10",
   },
 ]
 
@@ -63,45 +40,42 @@ export const TenantsPage = () => {
   return (
     <div className="flex flex-col gap-6">
       
-      {/* 1. HEADER: Título y Botón de Crear */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Inquilinos</h2>
-          <p className="text-muted-foreground">Gestiona los contratos y residentes.</p>
+          <p className="text-muted-foreground">Gestiona los residentes registrados.</p>
         </div>
         <CreateTenantDialog />
       </div>
 
-      {/* 2. FILTROS Y BÚSQUEDA */}
+      {/* Buscador */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Buscar por nombre o dpto..."
+              placeholder="Buscar por nombre o CI..."
               className="pl-8"
             />
         </div>
-        {/* Aquí podrías agregar un filtro por Estado */}
       </div>
 
-      {/* 3. TABLA DE DATOS */}
+      {/* Tabla */}
       <Card>
         <CardHeader>
           <CardTitle>Listado General</CardTitle>
           <CardDescription>
-            Tienes {tenants.length} inquilinos registrados en el sistema.
+            Tienes {tenants.length} inquilinos registrados.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Unidad/Dpto</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="hidden md:table-cell">Contacto</TableHead>
-                <TableHead className="hidden md:table-cell">Fecha Ingreso</TableHead>
+                <TableHead>Nombre Completo</TableHead>
+                <TableHead>Cédula (CI)</TableHead>
+                <TableHead>Teléfono</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -109,45 +83,34 @@ export const TenantsPage = () => {
               {tenants.map((tenant) => (
                 <TableRow key={tenant.id}>
                   <TableCell className="font-medium">
-                    <div className="flex flex-col">
-                        <span>{tenant.name}</span>
-                        <span className="text-xs text-muted-foreground md:hidden">{tenant.email}</span>
-                    </div>
+                    {tenant.fullName}
                   </TableCell>
-                  <TableCell>{tenant.unit}</TableCell>
                   <TableCell>
-                    {/* Renderizado condicional del Badge según estado */}
-                    {tenant.status === 'active' && <Badge className="bg-green-500 hover:bg-green-600">Al día</Badge>}
-                    {tenant.status === 'late' && <Badge variant="destructive">Mora</Badge>}
-                    {tenant.status === 'inactive' && <Badge variant="secondary">Inactivo</Badge>}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <div className="flex flex-col text-sm">
-                        <span>{tenant.email}</span>
-                        <span className="text-muted-foreground text-xs">{tenant.phone}</span>
+                    <div className="flex items-center gap-2">
+                        <CreditCard className="h-3 w-3 text-muted-foreground" />
+                        {tenant.ci}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {tenant.entryDate}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        {tenant.phone || "-"}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Abrir menú</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                         <DropdownMenuItem>
-                            <Phone className="mr-2 h-4 w-4" /> Contactar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <FileEdit className="mr-2 h-4 w-4" /> Editar Datos
+                            <FileEdit className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:text-red-600">
+                        <DropdownMenuItem className="text-red-600">
                             <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
