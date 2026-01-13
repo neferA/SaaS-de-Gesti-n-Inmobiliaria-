@@ -1,5 +1,5 @@
-import { Search, MoreHorizontal, Building, DoorOpen } from "lucide-react"
-
+import { Search, MoreHorizontal, Building, DoorOpen, FileEdit } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
 import { Badge } from "@/modules/core/components/badge"
@@ -14,6 +14,7 @@ import {
 } from "@/modules/core/components/card"
 
 import { CreateUnitDialog } from "./create-unit-dialog"
+import { EditUnitDialog } from "./edit-unit-dialog"
 
 // Mock Data ajustado a tu Modelo Prisma (Unit)
 const units = [
@@ -24,6 +25,15 @@ const units = [
 ]
 
 export const UnitsPage = () => {
+  // 3. Estados para el Modal de Edición
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [selectedUnit, setSelectedUnit] = useState<any>(null)
+
+  // 4. Función para abrir el modal con los datos de la fila
+  const handleEditClick = (unit: any) => {
+    setSelectedUnit(unit)
+    setIsEditOpen(true)
+  }
   return (
     <div className="flex flex-col gap-6">
       
@@ -100,7 +110,9 @@ export const UnitsPage = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Opciones</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(unit)}>
+                            <FileEdit className="mr-2 h-4 w-4" /> Editar
+                        </DropdownMenuItem>
                         <DropdownMenuItem>Ver Detalles</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -111,6 +123,11 @@ export const UnitsPage = () => {
           </Table>
         </CardContent>
       </Card>
+      <EditUnitDialog 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        data={selectedUnit} 
+      />
     </div>
   )
 }

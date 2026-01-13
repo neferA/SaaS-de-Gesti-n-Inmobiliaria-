@@ -1,5 +1,5 @@
 import { Search, MoreHorizontal, FileEdit, Trash2, Phone, CreditCard } from "lucide-react"
-
+import { useState } from "react"
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/modules/core/components/card"
 
 import { CreateTenantDialog } from "./create-tenant-dialog"
+import { EditTenantDialog } from "./edit-tenant-dialog"
 
 // Mock Data ajustado a tu Modelo Prisma (Tenant)
 const tenants = [
@@ -37,6 +38,15 @@ const tenants = [
 ]
 
 export const TenantsPage = () => {
+  // 3. Crear Estados para controlar la edición
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [selectedTenant, setSelectedTenant] = useState<any>(null)
+
+  // 4. Función auxiliar para abrir el modal
+  const handleEditClick = (tenant: any) => {
+    setSelectedTenant(tenant)
+    setIsEditOpen(true)
+  }
   return (
     <div className="flex flex-col gap-6">
       
@@ -106,7 +116,7 @@ export const TenantsPage = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(tenant)}>
                             <FileEdit className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -122,6 +132,11 @@ export const TenantsPage = () => {
           </Table>
         </CardContent>
       </Card>
+      <EditTenantDialog 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        data={selectedTenant} 
+      />
     </div>
   )
 }

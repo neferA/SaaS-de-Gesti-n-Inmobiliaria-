@@ -1,5 +1,5 @@
-import { Search, MoreHorizontal, Shield, UserCog, Trash2, Ban } from "lucide-react"
-
+import { Search, MoreHorizontal, Shield, UserCog, Trash2, Ban, FileEdit } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
 import { Badge } from "@/modules/core/components/badge"
@@ -29,6 +29,7 @@ import {
 
 // Importamos el Modal que acabamos de crear
 import { CreateUserDialog } from "./create-user-dialog"
+import { EditUserDialog } from "./edit-user-dialog"
 
 // Datos simulados (Mock Data) con estructura Prisma
 const users = [
@@ -59,6 +60,15 @@ const users = [
 ]
 
 export const UsersPage = () => {
+  // 3. Estados para controlar el modal
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+
+  // 4. Función para abrir el modal
+  const handleEditClick = (user: any) => {
+    setSelectedUser(user)
+    setIsEditOpen(true)
+  }
   return (
     <div className="flex flex-col gap-6">
       
@@ -138,7 +148,9 @@ export const UsersPage = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Opciones</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar Datos</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(user)}>
+                            <FileEdit className="mr-2 h-4 w-4" /> Editar Datos
+                        </DropdownMenuItem>
                         <DropdownMenuItem>Restablecer Password</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600">
@@ -157,6 +169,11 @@ export const UsersPage = () => {
           </Table>
         </CardContent>
       </Card>
+      <EditUserDialog 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        data={selectedUser} 
+      />
     </div>
   )
 }
