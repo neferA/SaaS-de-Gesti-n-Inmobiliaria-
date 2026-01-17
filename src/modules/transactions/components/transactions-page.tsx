@@ -6,11 +6,10 @@ import {
 import { toast } from "sonner"
 import { format } from "date-fns" 
 import { es } from "date-fns/locale"
+import { io } from "socket.io-client" // 👈 1. Importamos el cliente de WebSockets
 
-// 👇 Importamos Input (ahora sí lo usaremos)
 import { Input } from "@/modules/core/components/input"
 import { Badge } from "@/modules/core/components/badge"
-// ❌ Eliminamos Button de aquí porque no lo usamos directo
 
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -27,21 +26,21 @@ import { CreateTransactionDialog } from "./create-transaction-dialog"
 
 export const TransactionsPage = () => {
   const [loading, setLoading] = useState(true)
-
-  // Filtros de fecha
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
+  
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString())
   const [selectedYear, setSelectedYear] = useState(currentYear.toString())
-  
-  // Estado para el buscador local
   const [searchTerm, setSearchTerm] = useState("")
-
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null)
 
+  // Función para cargar datos (se usa al inicio y al recibir eventos)
   const fetchData = async () => {
     try {
-      setLoading(true)
+      // Solo mostramos loading si es la primera carga o cambio de filtro, 
+      // para actualizaciones en tiempo real es mejor que sea silencioso o sutil.
+      if (!dashboardData) setLoading(true) 
+      
       const data = await transactionsService.getReport(Number(selectedMonth), Number(selectedYear))
       setDashboardData(data)
     } catch (error) {
@@ -52,9 +51,35 @@ export const TransactionsPage = () => {
     }
   }
 
+  // 👇 2. LÓGICA WEBSOCKET + CARGA INICIAL
   useEffect(() => {
+    // A) Cargar datos iniciales
     fetchData()
-  }, [selectedMonth, selectedYear])
+
+    // B) Conectar WebSocket
+    // Asegúrate de que este puerto sea el mismo que tu Backend (3000 o 3001)
+    const socket = io("http://localhost:3000") 
+
+    // C) Escuchar evento 'new-transaction'
+    socket.on("new-transaction", (data: any) => {
+      console.log("⚡ Transacción recibida en tiempo real:", data)
+      
+      // Notificación visual
+      toast.info("Nuevo movimiento registrado", {
+        description: `${data.description} - Bs ${data.amount}`,
+        duration: 4000, // Duración en pantalla
+      })
+
+      // Recargar datos automáticamente
+      fetchData()
+    })
+
+    // D) Limpieza al desmontar o cambiar filtros
+    return () => {
+      socket.disconnect()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth, selectedYear]) // Se reinicia si cambias de mes/año
 
   // Filtrado local para el buscador
   const filteredTransactions = dashboardData?.transactions.filter(tx => 
@@ -76,7 +101,7 @@ export const TransactionsPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -126,7 +151,7 @@ export const TransactionsPage = () => {
         </Select>
       </div>
 
-      {/* CARDS DE RESUMEN (Datos del Backend) */}
+      {/* TARJETAS KPI */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -135,7 +160,7 @@ export const TransactionsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-                {loading ? "..." : formatMoney(dashboardData?.summary.income || 0)}
+                {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.income || 0)}
             </div>
           </CardContent>
         </Card>
@@ -147,7 +172,7 @@ export const TransactionsPage = () => {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                    {loading ? "..." : formatMoney(dashboardData?.summary.expense || 0)}
+                    {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.expense || 0)}
                 </div>
             </CardContent>
         </Card>
@@ -161,13 +186,13 @@ export const TransactionsPage = () => {
                 <div className={`text-2xl font-bold ${
                     (dashboardData?.summary.netProfit || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
                 }`}>
-                    {loading ? "..." : formatMoney(dashboardData?.summary.netProfit || 0)}
+                    {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.netProfit || 0)}
                 </div>
             </CardContent>
         </Card>
       </div>
 
-      {/* 👇 BUSCADOR LOCAL (Esto elimina las advertencias de unused imports) */}
+      {/* BUSCADOR */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -181,13 +206,13 @@ export const TransactionsPage = () => {
         </div>
       </div>
 
-      {/* TABLA DE MOVIMIENTOS */}
+      {/* TABLA */}
       <Card>
         <CardHeader>
           <CardTitle>Detalle de Movimientos</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading && !dashboardData ? (
              <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
              </div>

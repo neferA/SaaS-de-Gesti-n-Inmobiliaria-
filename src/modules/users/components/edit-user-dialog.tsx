@@ -2,7 +2,9 @@ import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Loader2, Mail } from "lucide-react"
+// 👇 CORRECCIÓN: Renombramos 'User' a 'UserIcon' para evitar conflicto con la interfaz
+import { Loader2, Save, User as UserIcon, Mail, Lock } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/modules/core/components/button"
 import {
@@ -16,75 +18,138 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/modules/core/components/select"
 
+// Ahora 'User' se refiere solo a la interfaz del servicio, sin conflictos.
+import { usersService, type User } from "../services/users.service"
+
 const formSchema = z.object({
-  firstName: z.string().min(2),
-  lastName: z.string().min(2),
-  email: z.string().email(),
-  roleName: z.string(), // "admin", "staff", etc.
+  firstName: z.string().min(2, "Mínimo 2 letras"),
+  lastName: z.string().min(2, "Mínimo 2 letras"),
+  username: z.string().min(3, "Mínimo 3 caracteres"),
+  email: z.string().email("Correo inválido"),
+  password: z.string().optional(),
+  roleId: z.string().min(1, "Rol requerido"),
 })
 
 interface EditUserDialogProps {
+  user: User | null // ✅ Ahora TypeScript sabe que esto es la Interfaz
   open: boolean
   onOpenChange: (open: boolean) => void
-  data: any
+  onUserUpdated: () => void
 }
 
-export const EditUserDialog = ({ open, onOpenChange, data }: EditUserDialogProps) => {
-  const form = useForm({
+export const EditUserDialog = ({ user, open, onOpenChange, onUserUpdated }: EditUserDialogProps) => {
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { firstName: "", lastName: "", email: "", roleName: "staff" },
+    defaultValues: {
+      firstName: "", lastName: "", username: "", email: "", password: "", roleId: "2"
+    },
   })
 
   useEffect(() => {
-    if (data) {
+    if (user && open) {
+      let roleId = "2"
+      const roleName = user.role?.name?.toLowerCase() || ""
+      
+      if (roleName.includes("admin")) roleId = "1"
+      else if (roleName.includes("observador")) roleId = "3"
+      
       form.reset({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        roleName: data.role, // Asumiendo que viene como 'role' en el objeto data
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.email,
+        password: "",
+        roleId: roleId, 
       })
     }
-  }, [data, form])
+  }, [user, open, form])
 
-  function onSubmit(values: any) {
-    console.log("Editando Usuario:", values)
-    setTimeout(() => onOpenChange(false), 1000)
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) return
+
+    try {
+      const payload: any = {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        username: values.username,
+        email: values.email,
+        roleId: Number(values.roleId),
+      }
+
+      if (values.password && values.password.length > 0) {
+        if (values.password.length < 6) {
+             form.setError("password", { message: "Mínimo 6 caracteres si vas a cambiarla" })
+             return
+        }
+        payload.password = values.password
+      }
+
+      await usersService.update(user.id, payload)
+
+      toast.success("Usuario actualizado")
+      onOpenChange(false)
+      onUserUpdated()
+
+    } catch (error: any) {
+      console.error(error)
+      toast.error("Error al actualizar", { description: error.response?.data?.message })
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-106.25">
+      <DialogContent className="sm:max-w-125">
         <DialogHeader>
           <DialogTitle>Editar Usuario</DialogTitle>
-          <DialogDescription>Actualizar permisos o datos básicos.</DialogDescription>
+          <DialogDescription>Modifica los datos de acceso.</DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <div className="grid grid-cols-2 gap-4">
+             {/* Username */}
+             <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Usuario</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                        {/* 👇 Usamos UserIcon aquí */}
+                        <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input className="pl-9" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
                 <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Nombre</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
+                      <FormLabel>Nombres</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
                 <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Apellido</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
+                      <FormLabel>Apellidos</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
             </div>
-            
+
             <FormField
               control={form.control}
               name="email"
@@ -103,27 +168,47 @@ export const EditUserDialog = ({ open, onOpenChange, data }: EditUserDialogProps
             />
 
             <FormField
-                control={form.control}
-                name="roleName"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Rol</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                        <SelectItem value="admin">Administrador</SelectItem>
-                        <SelectItem value="staff">Personal</SelectItem>
-                        <SelectItem value="viewer">Observador</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nueva Contraseña (Opcional)</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="password" className="pl-9" placeholder="Dejar vacío para no cambiar" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
+
+            <FormField
+              control={form.control}
+              name="roleId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rol</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="1">🛡️ Administrador</SelectItem>
+                      <SelectItem value="2">👤 Personal</SelectItem>
+                      <SelectItem value="3">👀 Observador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Actualizar
+                <Save className="mr-2 h-4 w-4" /> Guardar Cambios
               </Button>
             </DialogFooter>
           </form>

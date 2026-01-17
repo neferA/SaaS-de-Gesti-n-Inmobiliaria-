@@ -1,179 +1,228 @@
-import { Search, MoreHorizontal, Shield, UserCog, Trash2, Ban, FileEdit } from "lucide-react"
-import { useState } from "react"
-import { Button } from "@/modules/core/components/button"
+import { useState, useEffect } from "react"
+// 👇 1. Importamos el icono Edit2
+import { Search, Loader2, Shield, User as UserIcon, Trash2, UserCheck, Edit2 } from "lucide-react"
+import { toast } from "sonner"
+import { format } from "date-fns" 
+import { es } from "date-fns/locale"
+
 import { Input } from "@/modules/core/components/input"
+import { Button } from "@/modules/core/components/button"
 import { Badge } from "@/modules/core/components/badge"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/modules/core/components/table"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/modules/core/components/dropdown-menu"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/modules/core/components/card"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/modules/core/components/alert-dialog"
 
-// Importamos el Modal que acabamos de crear
+import { usersService, type User } from "../services/users.service"
 import { CreateUserDialog } from "./create-user-dialog"
+// 👇 2. Importamos el Modal de Edición
 import { EditUserDialog } from "./edit-user-dialog"
 
-// Datos simulados (Mock Data) con estructura Prisma
-const users = [
-  { 
-    id: 1, 
-    firstName: "Admin", 
-    lastName: "Principal", 
-    email: "admin@empresa.com", 
-    role: "admin", 
-    status: "active" 
-  },
-  { 
-    id: 2, 
-    firstName: "Pedro", 
-    lastName: "Soporte", 
-    email: "soporte@empresa.com", 
-    role: "staff", 
-    status: "active" 
-  },
-  { 
-    id: 3, 
-    firstName: "Juan", 
-    lastName: "Auditor", 
-    email: "auditor@gmail.com", 
-    role: "viewer", 
-    status: "inactive" 
-  },
-]
-
 export const UsersPage = () => {
-  // 3. Estados para controlar el modal
-  const [isEditOpen, setIsEditOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
 
-  // 4. Función para abrir el modal
-  const handleEditClick = (user: any) => {
-    setSelectedUser(user)
-    setIsEditOpen(true)
+  // 👇 3. Estado para controlar qué usuario se está editando
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      const response = await usersService.getAll({ 
+        page: 1, 
+        limit: 100, 
+        search: searchTerm 
+      })
+      setUsers(response.data) 
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al cargar usuarios")
+    } finally {
+      setLoading(false)
+    }
   }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        fetchUsers()
+    }, 500)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]) 
+
+  const handleDelete = async (id: string) => {
+    try {
+      await usersService.delete(id)
+      toast.success("Usuario eliminado correctamente")
+      fetchUsers() 
+    } catch (error) {
+      console.error(error)
+      toast.error("No se pudo eliminar el usuario")
+    }
+  }
+
+  const renderRoleBadge = (roleName?: string) => {
+    const r = roleName?.toLowerCase() || "";
+
+    if (r.includes('admin')) {
+        return <Badge className="bg-purple-600 hover:bg-purple-700"><Shield className="mr-1 h-3 w-3" /> Admin</Badge>
+    }
+    if (r.includes('staff') || r.includes('personal')) {
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200"><UserCheck className="mr-1 h-3 w-3" /> Personal</Badge>
+    }
+    return <Badge variant="outline"><UserIcon className="mr-1 h-3 w-3" /> {roleName || "User"}</Badge>
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       
-      {/* 1. HEADER: Título y Botón de Crear */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Usuarios del Sistema</h2>
-          <p className="text-muted-foreground">Gestiona los accesos y roles administrativos.</p>
+          <h2 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h2>
+          <p className="text-muted-foreground">Administra el acceso y roles del personal.</p>
         </div>
-        {/* Aquí usamos el componente del Modal */}
-        <CreateUserDialog />
+        <CreateUserDialog onUserCreated={fetchUsers} />
       </div>
 
-      {/* 2. BARRA DE HERRAMIENTAS (Buscador) */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar por nombre..." className="pl-8" />
+            <Input 
+                placeholder="Buscar por nombre, usuario o email..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
         </div>
       </div>
 
-      {/* 3. TABLA DE DATOS */}
       <Card>
         <CardHeader>
-          <CardTitle>Personal Registrado</CardTitle>
+          <CardTitle>Usuarios Registrados</CardTitle>
           <CardDescription>
-            Lista de personas con credenciales de acceso al panel.
+             Mostrando {users.length} resultados.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex flex-col">
-                        <span className="flex items-center gap-2">
-                            {/* Icono según rol */}
-                            {user.role === 'admin' ? (
-                                <Shield className="h-3 w-3 text-primary" /> 
-                            ) : (
-                                <UserCog className="h-3 w-3 text-muted-foreground" />
-                            )}
-                            {/* Nombre Completo Combinado */}
-                            {user.firstName} {user.lastName}
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-5">{user.email}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {/* Badges de Roles */}
-                    {user.role === 'admin' && <Badge variant="default">Admin</Badge>}
-                    {user.role === 'staff' && <Badge variant="secondary">Staff</Badge>}
-                    {user.role === 'viewer' && <Badge variant="outline">Observador</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    {/* Indicador de Estado */}
-                    {user.status === 'active' 
-                        ? <span className="text-green-600 text-xs font-bold flex items-center gap-1">● Activo</span> 
-                        : <span className="text-red-500 text-xs font-bold flex items-center gap-1">● Bloqueado</span>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Menú</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Opciones</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(user)}>
-                            <FileEdit className="mr-2 h-4 w-4" /> Editar Datos
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Restablecer Password</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
-                            {user.status === 'active' ? (
-                                <><Ban className="mr-2 h-4 w-4"/> Bloquear Acceso</>
-                            ) : (
-                                <><Trash2 className="mr-2 h-4 w-4"/> Eliminar Definitivamente</>
-                            )}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {loading ? (
+             <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Nombre Completo</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Registro</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
+                            {searchTerm 
+                                ? "No se encontraron usuarios con esa búsqueda." 
+                                : "No hay usuarios registrados."}
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    users.map((user) => (
+                    <TableRow key={user.id}>
+                        <TableCell>
+                            <div className="flex flex-col">
+                                <span className="font-bold text-foreground flex items-center gap-2">
+                                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                                    {user.username}
+                                </span>
+                                <span className="text-xs text-muted-foreground ml-6">{user.email}</span>
+                            </div>
+                        </TableCell>
+
+                        <TableCell>
+                            <span className="capitalize">
+                                {user.firstName} {user.lastName}
+                            </span>
+                        </TableCell>
+
+                        <TableCell>
+                            {renderRoleBadge(user.role?.name)}
+                        </TableCell>
+
+                        <TableCell className="text-muted-foreground text-sm">
+                            {user.createdAt 
+                                ? format(new Date(user.createdAt), "dd MMM yyyy", { locale: es }) 
+                                : "-"}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                                
+                                {/* 👇 4. BOTÓN EDITAR */}
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    onClick={() => setEditingUser(user)}
+                                >
+                                    <Edit2 className="h-4 w-4" />
+                                </Button>
+
+                                {/* BOTÓN ELIMINAR */}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-600 hover:bg-red-50">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Estás a punto de eliminar a <strong>{user.firstName} {user.lastName}</strong>.
+                                                <br/>
+                                                Esta acción eliminará su acceso al sistema permanentemente.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction 
+                                                onClick={() => handleDelete(user.id)} 
+                                                className="bg-red-600 hover:bg-red-700 text-white"
+                                            >
+                                                Confirmar Eliminación
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       <EditUserDialog 
-        open={isEditOpen} 
-        onOpenChange={setIsEditOpen} 
-        data={selectedUser} 
+        open={!!editingUser} 
+        user={editingUser}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+        onUserUpdated={() => {
+            fetchUsers()
+            setEditingUser(null)
+        }}
       />
+
     </div>
   )
 }
