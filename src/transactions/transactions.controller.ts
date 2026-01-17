@@ -13,7 +13,7 @@ export class TransactionsController {
     return this.transactionsService.create(createTransactionDto);
   }
 
-  @Get()
+  @Get() 
   findAll() {
     return this.transactionsService.findAll();
   }

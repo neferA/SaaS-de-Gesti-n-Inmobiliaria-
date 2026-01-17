@@ -6,10 +6,11 @@ import { UnitsModule } from './units/units.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
+import { HistoryModule } from './history/history.module';
 
 
 @Module({
-  imports: [UsersModule, PrismaModule, TenantsModule, UnitsModule, TransactionsModule, AuthModule, EventsModule],
+  imports: [UsersModule, PrismaModule, TenantsModule, UnitsModule, TransactionsModule, AuthModule, EventsModule, HistoryModule],
   controllers: [],
   providers: [],
 })

@@ -4,7 +4,7 @@ import { Server, Socket } from 'socket.io';
 // 1. Configuración del Gateway
 @WebSocketGateway({
   cors: {
-    origin: '*', // ⚠️ Permite conexión desde cualquier frontend (React, Postman, etc.)
+    origin: '*', 
   },
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -24,8 +24,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`❌ Cliente desconectado: ${client.id}`);
   }
 
-  // 3. (Opcional) Escuchar mensajes desde el cliente
-  // Si el frontend envía un evento 'ping', respondemos 'pong'
   @SubscribeMessage('ping')
   handleMessage(@MessageBody() data: string): string {
     console.log('Mensaje recibido:', data);
