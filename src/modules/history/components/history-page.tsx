@@ -1,6 +1,8 @@
-import { Search, FileClock, User, Home, StickyNote } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Search, Loader2, FileClock, User, Home, FileText, Clock } from "lucide-react"
+import { format, differenceInMonths, differenceInDays } from "date-fns"
+import { es } from "date-fns/locale"
 
-import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -8,52 +10,73 @@ import {
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/modules/core/components/card"
+import { Badge } from "@/modules/core/components/badge"
 
-// Mock Data basado en tu modelo RentalHistory
-const history = [
-  {
-    id: "hist-1",
-    unitName: "Dpto 101",
-    tenantName: "Roberto Gómez",
-    tenantCi: "4567890 LP",
-    startDate: "2023-01-01",
-    endDate: "2023-12-31",
-    notes: "Se fue debiendo 50Bs de luz. Dejó la pared sucia.",
-  },
-  {
-    id: "hist-2",
-    unitName: "Cuarto Azul",
-    tenantName: "Ana Méndez",
-    tenantCi: "1122334 SC",
-    startDate: "2023-06-01",
-    endDate: "2023-09-01",
-    notes: "Todo excelente. Inquilino recomendado.",
-  },
-  {
-    id: "hist-3",
-    unitName: "Dpto 102",
-    tenantName: "Carlos Vela",
-    tenantCi: "9988776 CB",
-    startDate: "2022-01-01",
-    endDate: "2023-01-01",
-    notes: null, // Sin notas
-  },
-]
+import { historyService, type HistoryRecord } from "../services/history.service"
 
 export const HistoryPage = () => {
+  const [records, setRecords] = useState<HistoryRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const fetchHistory = async () => {
+    try {
+      setLoading(true)
+      const data = await historyService.getAll()
+      setRecords(data)
+    } catch (error) {
+      console.error("Error cargando historial:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchHistory()
+  }, [])
+
+  // 🔍 Filtro: Busca por Nombre (que viene en firstName), CI o Unidad
+  const filteredRecords = records.filter((record) => 
+    record.tenant.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.tenant.ci.includes(searchTerm) ||
+    record.unit.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Formateador de fechas
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-"
+    try {
+      return format(new Date(dateString), "dd MMM yyyy", { locale: es })
+    } catch {
+      return dateString
+    }
+  }
+
+  // 🧮 Calcular duración exacta (Meses y días)
+  const getDuration = (start: string, end: string) => {
+    try {
+        const s = new Date(start)
+        const e = new Date(end)
+        
+        const months = differenceInMonths(e, s)
+        const days = differenceInDays(e, s) % 30 // Aproximado
+
+        if (months > 0) {
+            return `${months} mes${months > 1 ? 'es' : ''}${days > 0 ? ` y ${days} días` : ''}`
+        }
+        return `${days} días`
+    } catch {
+        return "-"
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Historial de Alquileres</h2>
-          <p className="text-muted-foreground">Registro histórico de ocupación y finalización de contratos.</p>
-        </div>
-        {/* No hay botón de "Crear" porque esto es automático del sistema */}
-        <Button variant="outline" disabled>
-            <FileClock className="mr-2 h-4 w-4" /> Exportar Informe
-        </Button>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Historial de Alquileres</h2>
+        <p className="text-muted-foreground">Registro de contratos finalizados y observaciones de salida.</p>
       </div>
 
       {/* Buscador */}
@@ -62,8 +85,10 @@ export const HistoryPage = () => {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
                 type="search" 
-                placeholder="Buscar por inquilino o CI..." 
+                placeholder="Buscar por nombre, CI o unidad..." 
                 className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
             />
         </div>
       </div>
@@ -71,65 +96,102 @@ export const HistoryPage = () => {
       {/* Tabla */}
       <Card>
         <CardHeader>
-          <CardTitle>Archivo de Contratos Finalizados</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileClock className="h-5 w-5" /> Registros Pasados
+          </CardTitle>
           <CardDescription>
-            Mostrando {history.length} registros históricos.
+            Mostrando {filteredRecords.length} registros históricos.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Unidad</TableHead>
-                <TableHead>Inquilino Anterior</TableHead>
-                <TableHead>Periodo</TableHead>
-                <TableHead>Notas / Observaciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {history.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-medium">
-                        <Home className="h-4 w-4 text-muted-foreground" />
-                        {record.unitName}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                        <span className="flex items-center gap-1">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            {record.tenantName}
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-4">
-                            CI: {record.tenantCi}
-                        </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col text-sm">
-                        <span className="flex items-center gap-1 text-green-600">
-                            <span className="text-xs text-muted-foreground">Del:</span> {record.startDate}
-                        </span>
-                        <span className="flex items-center gap-1 text-red-500">
-                            <span className="text-xs text-muted-foreground">Al:</span> {record.endDate}
-                        </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {record.notes ? (
-                        <div className="flex items-start gap-2 max-w-75">                            
-                            <StickyNote className="h-4 w-4 text-yellow-500 mt-1 shrink-0" />
-                            <p className="text-sm italic text-muted-foreground">{record.notes}</p>
-                        </div>
-                    ) : (
-                        <span className="text-xs text-muted-foreground">- Sin observaciones -</span>
-                    )}
-                  </TableCell>
+          {loading ? (
+             <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Inquilino</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Periodo</TableHead>
+                  <TableHead>Duración</TableHead>
+                  <TableHead>Observaciones / Notas</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            {records.length === 0 
+                                ? "No hay historial registrado aún." 
+                                : "No se encontraron resultados con esa búsqueda."}
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    filteredRecords.map((record) => (
+                    <TableRow key={record.id}>
+                        {/* Inquilino */}
+                        <TableCell>
+                            <div className="flex flex-col">
+                                <span className="font-medium flex items-center gap-2">
+                                    <User className="h-3 w-3 text-muted-foreground" />
+                                    {/* Backend manda nombre completo en firstName */}
+                                    {record.tenant.firstName} 
+                                </span>
+                                <span className="text-xs text-muted-foreground ml-5 font-mono bg-muted px-1 rounded w-fit">
+                                    CI: {record.tenant.ci}
+                                </span>
+                            </div>
+                        </TableCell>
+
+                        {/* Unidad */}
+                        <TableCell>
+                             <Badge variant="secondary" className="flex w-fit gap-1 items-center">
+                                <Home className="h-3 w-3" />
+                                {record.unit.name}
+                             </Badge>
+                        </TableCell>
+
+                        {/* Fechas (Inicio -> Fin) */}
+                        <TableCell>
+                            <div className="flex flex-col text-sm">
+                                <span className="text-green-600 flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground">Del:</span> 
+                                    {formatDate(record.startDate)}
+                                </span>
+                                <span className="text-red-600 flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground">Al:</span> 
+                                    {formatDate(record.endDate)}
+                                </span>
+                            </div>
+                        </TableCell>
+
+                        {/* Duración Calculada */}
+                        <TableCell>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span className="text-sm">{getDuration(record.startDate, record.endDate)}</span>
+                            </div>
+                        </TableCell>
+
+                        {/* NOTAS (Nuevo campo del modelo RentalHistory) */}
+                        <TableCell className="max-w-62.5">
+                            {record.notes ? (
+                                <div className="flex items-start gap-2 bg-yellow-50/50 p-2 rounded-md border border-yellow-100 text-sm text-yellow-800">
+                                    <FileText className="h-3 w-3 mt-0.5 shrink-0" />
+                                    <p className="leading-tight">{record.notes}</p>
+                                </div>
+                            ) : (
+                                <span className="text-muted-foreground text-xs italic">Sin observaciones</span>
+                            )}
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

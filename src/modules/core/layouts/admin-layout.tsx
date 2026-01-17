@@ -59,16 +59,17 @@ export const AdminLayout = () => {
                 <Home className="h-4 w-4" />
                 Dashboard
               </Link>
-              
-              <Link to="/dashboard/tenants" className={getLinkClass("/dashboard/tenants")}>
-                <Users className="h-4 w-4" />
-                Inquilinos
-              </Link>
-              
+
               <Link to="/dashboard/transactions" className={getLinkClass("/dashboard/transactions")}>
                 <CreditCard className="h-4 w-4" />
                 Transacciones
               </Link>
+
+              <Link to="/dashboard/tenants" className={getLinkClass("/dashboard/tenants")}>
+                <Users className="h-4 w-4" />
+                Inquilinos
+              </Link>
+                            
               <Link to="/dashboard/units" className={getLinkClass("/dashboard/units")}>
                   <DoorOpen className="h-4 w-4" />
                   Unidades
@@ -111,16 +112,15 @@ export const AdminLayout = () => {
                   <Home className="h-5 w-5" />
                   Dashboard
                 </Link>
-                
-                <Link to="/dashboard/tenants" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
-                  <Users className="h-5 w-5" />
-                  Inquilinos
-                </Link>
-                
+
                 <Link to="/dashboard/transactions" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <CreditCard className="h-5 w-5" />
                   Transacciones
                 </Link>
+                <Link to="/dashboard/tenants" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
+                  <Users className="h-5 w-5" />
+                  Inquilinos
+                </Link>              
 
                 <Link to="/dashboard/units" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <CreditCard className="h-5 w-5" />

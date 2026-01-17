@@ -1,5 +1,7 @@
-import { Search, MoreHorizontal, FileEdit, Trash2, Phone, CreditCard } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { Search, MoreHorizontal, FileEdit, Phone, CreditCard, Loader2, UserX } from "lucide-react"
+import { toast } from "sonner" // Importar Toast
+
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
 import {
@@ -14,64 +16,59 @@ import {
 
 import { CreateTenantDialog } from "./create-tenant-dialog"
 import { EditTenantDialog } from "./edit-tenant-dialog"
-
-// Mock Data ajustado a tu Modelo Prisma (Tenant)
-const tenants = [
-  {
-    id: "1",
-    fullName: "Juan Pérez",
-    ci: "5423123 SC",
-    phone: "707-12345",
-  },
-  {
-    id: "2",
-    fullName: "María Gonzales",
-    ci: "8977654 CB",
-    phone: "654-98765",
-  },
-  {
-    id: "3",
-    fullName: "Carlos Ruiz",
-    ci: "1122334 LP",
-    phone: "777-55555",
-  },
-]
+import { tenantsService, type Tenant } from "../services/tenants.service"
+import { LogOut } from "lucide-react" // Importar icono LogOut
+import { CheckoutTenantDialog } from "./checkout-tenant-dialog"
 
 export const TenantsPage = () => {
-  // 3. Crear Estados para controlar la edición
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [selectedTenant, setSelectedTenant] = useState<any>(null)
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)  
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // 4. Función auxiliar para abrir el modal
-  const handleEditClick = (tenant: any) => {
+  const fetchTenants = async () => {
+    try {
+      setLoading(true)
+      const data = await tenantsService.getAll()
+      setTenants(data)
+    } catch (error) {
+      console.error("Error cargando inquilinos:", error)
+      toast.error("Error al cargar la lista")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTenants()
+  }, [])
+
+  // 1. Abrir modal de edición
+  const handleEditClick = (tenant: Tenant) => {
     setSelectedTenant(tenant)
     setIsEditOpen(true)
   }
+
+  
+  const [tenantToCheckout, setTenantToCheckout] = useState<Tenant | null>(null)
   return (
     <div className="flex flex-col gap-6">
       
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Inquilinos</h2>
           <p className="text-muted-foreground">Gestiona los residentes registrados.</p>
         </div>
-        <CreateTenantDialog />
+        <CreateTenantDialog onTenantCreated={fetchTenants} />
       </div>
 
-      {/* Buscador */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar por nombre o CI..."
-              className="pl-8"
-            />
+            <Input type="search" placeholder="Buscar..." className="pl-8" />
         </div>
       </div>
 
-      {/* Tabla */}
       <Card>
         <CardHeader>
           <CardTitle>Listado General</CardTitle>
@@ -80,63 +77,95 @@ export const TenantsPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre Completo</TableHead>
-                <TableHead>Cédula (CI)</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tenants.map((tenant) => (
-                <TableRow key={tenant.id}>
-                  <TableCell className="font-medium">
-                    {tenant.fullName}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                        <CreditCard className="h-3 w-3 text-muted-foreground" />
-                        {tenant.ci}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        {tenant.phone || "-"}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(tenant)}>
-                            <FileEdit className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {loading ? (
+             <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre Completo</TableHead>
+                  <TableHead>Cédula (CI)</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {tenants.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                            <div className="flex flex-col items-center gap-2">
+                                <UserX className="h-8 w-8 text-muted-foreground/50" />
+                                <p>No hay inquilinos registrados.</p>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    tenants.map((tenant) => (
+                    <TableRow key={tenant.id}>
+                        <TableCell className="font-medium">{tenant.fullName}</TableCell>
+                        <TableCell>
+                        <div className="flex items-center gap-2">
+                            <CreditCard className="h-3 w-3 text-muted-foreground" />
+                            {tenant.ci}
+                        </div>
+                        </TableCell>
+                        <TableCell>
+                        <div className="flex items-center gap-2">
+                            <Phone className="h-3 w-3 text-muted-foreground" />
+                            {tenant.phone || "-"}
+                        </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEditClick(tenant)}>
+                                <FileEdit className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setTenantToCheckout(tenant)}>
+                              <LogOut className="mr-2 h-4 w-4 text-orange-600" /> 
+                              Dar de Baja
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
-      </Card>
+      </Card>    
       <EditTenantDialog 
         open={isEditOpen} 
-        onOpenChange={setIsEditOpen} 
+        onOpenChange={(open) => {
+            setIsEditOpen(open)
+            if(!open) fetchTenants()
+        }} 
         data={selectedTenant} 
       />
+      <CheckoutTenantDialog 
+        open={!!tenantToCheckout} 
+        onOpenChange={(open) => {
+            if (!open) {
+                setTenantToCheckout(null)
+                fetchTenants() 
+            }
+        }} 
+        data={tenantToCheckout} 
+      />
+              
     </div>
   )
 }

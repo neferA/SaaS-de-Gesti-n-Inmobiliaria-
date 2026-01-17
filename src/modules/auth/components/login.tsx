@@ -1,6 +1,6 @@
 import { useState } from "react"
-import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react"
-import { Link, useNavigate } from "react-router"
+import { Eye, EyeOff, Loader2, Lock, Mail, AlertCircle } from "lucide-react" // Agregué AlertCircle
+import { Link, useNavigate } from "react-router" 
 
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
@@ -13,38 +13,67 @@ import {
   CardHeader,
   CardTitle,
 } from "@/modules/core/components/card"
-// import { useAuthStore } from "../hooks/useAuthStore" // Descomentar cuando tengamos el store listo
+
+// 1. IMPORTAMOS EL SERVICIO DE AUTENTICACIÓN
+import { authService } from "../services/auth.service"
 
 export const Login = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   
-  // Estados temporales para el formulario
+  // 2. ESTADO PARA MANEJAR ERRORES DE LOGIN
+  const [error, setError] = useState<string | null>(null)
+  
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
-    // SIMULACIÓN DE LOGIN (Aquí conectaremos Axios luego)
-    console.log("Datos enviados:", formData)
-    
-    setTimeout(() => {
+    try {
+      // Llamada limpia al servicio
+      const response = await authService.login(formData)
+
+      // Buscamos el token (Soporte para accessToken o access_token)
+      const token = response.accessToken || response.access_token
+
+      if (token) {
+        localStorage.setItem("token", token)
+        
+        if (response.user) {
+           localStorage.setItem("user", JSON.stringify(response.user))
+        }
+        
+        navigate("/dashboard")
+      } else {
+        // Error de lógica: El servidor respondió bien pero sin token
+        setError("Error de comunicación: Credenciales aceptadas pero sin acceso.")
+      }
+
+    } catch (err: any) {
+      // Mantenemos console.error para que TÚ puedas depurar si falla, 
+      // pero el usuario solo ve el mensaje de UI
+      console.error("Login fallido:", err)
+
+      if (err.response && err.response.status === 401) {
+        setError("Correo o contraseña incorrectos.")
+      } else {
+        setError("No se pudo conectar con el servidor.")
+      }
+    } finally {
       setLoading(false)
-      // Redirigir al dashboard tras "login exitoso"
-      navigate("/dashboard")
-    }, 2000)
+    }
   }
 
   return (
     <Card className="w-full max-w-md border-muted-foreground/20 shadow-xl">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center mb-2">
-            {/* Aquí podrías poner tu Logo */}
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Lock className="h-6 w-6 text-primary" />
             </div>
@@ -57,6 +86,14 @@ export const Login = () => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           
+          {/* MOSTRAR MENSAJE DE ERROR SI EXISTE */}
+          {error && (
+            <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md animate-in fade-in slide-in-from-top-1">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {/* CAMPO EMAIL */}
           <div className="space-y-2">
             <Label htmlFor="email">Correo Electrónico</Label>
@@ -113,7 +150,7 @@ export const Login = () => {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verificando...
+                Ingresando...
               </>
             ) : (
               "Ingresar"
@@ -121,14 +158,14 @@ export const Login = () => {
           </Button>
         </form>
       </CardContent>
-     <CardFooter className="flex flex-col space-y-2 justify-center">
-      <p className="text-sm text-muted-foreground">
-        ¿No tienes cuenta?{" "}
-        <Link to="/auth/register" className="text-primary hover:underline font-medium">
-          Regístrate aquí
-        </Link>
-      </p>
-    </CardFooter>
+      <CardFooter className="flex flex-col space-y-2 justify-center">
+       <p className="text-sm text-muted-foreground">
+         ¿No tienes cuenta?{" "}
+         <Link to="/auth/register" className="text-primary hover:underline font-medium">
+           Regístrate aquí
+         </Link>
+       </p>
+     </CardFooter>
     </Card>
   )
 }

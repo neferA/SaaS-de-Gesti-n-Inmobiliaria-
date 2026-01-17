@@ -1,166 +1,258 @@
-import { Download, Filter, MoreHorizontal, Search, CalendarIcon, ArrowUpCircle, ArrowDownCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { 
+  Search, ArrowUpCircle, ArrowDownCircle, Calendar, 
+  Loader2, Wallet, Tag, Filter 
+} from "lucide-react"
+import { toast } from "sonner"
+import { format } from "date-fns" 
+import { es } from "date-fns/locale"
 
-import { Button } from "@/modules/core/components/button"
+// 👇 Importamos Input (ahora sí lo usaremos)
 import { Input } from "@/modules/core/components/input"
 import { Badge } from "@/modules/core/components/badge"
+// ❌ Eliminamos Button de aquí porque no lo usamos directo
+
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/modules/core/components/table"
 import {
-  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/modules/core/components/dropdown-menu"
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
+  Card, CardContent, CardHeader, CardTitle,
 } from "@/modules/core/components/card"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/modules/core/components/select"
 
+import { transactionsService, type DashboardResponse } from "../services/transactions.service"
 import { CreateTransactionDialog } from "./create-transaction-dialog"
 
-// DATOS DE PRUEBA: Nota cómo incluimos el nombre del inquilino en la descripción
-const transactions = [
-  {
-    id: "TRX-1",
-    description: "Cobro Alquiler Enero - Juan Pérez", // <--- El inquilino va aquí
-    amount: 2500.00,
-    date: "2024-01-05",
-    type: "INGRESO",
-    category: "ALQUILER_MENSUAL"
-  },
-  {
-    id: "TRX-2",
-    description: "Pago factura de luz - Medidor General",
-    amount: 150.50,
-    date: "2024-01-10",
-    type: "GASTO",
-    category: "LUZ_GENERAL"
-  },
-  {
-    id: "TRX-3",
-    description: "Reparación Grifo Dpto 2 - Plomero",
-    amount: 300.00,
-    date: "2024-01-12",
-    type: "GASTO",
-    category: "MANTENIMIENTO_GENERAL"
-  },
-]
-
 export const TransactionsPage = () => {
+  const [loading, setLoading] = useState(true)
+
+  // Filtros de fecha
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString())
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString())
+  
+  // Estado para el buscador local
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null)
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const data = await transactionsService.getReport(Number(selectedMonth), Number(selectedYear))
+      setDashboardData(data)
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al cargar el reporte")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [selectedMonth, selectedYear])
+
+  // Filtrado local para el buscador
+  const filteredTransactions = dashboardData?.transactions.filter(tx => 
+    tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tx.amount.includes(searchTerm) ||
+    (tx.category && tx.category.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) || []
+
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat("es-BO", { style: "currency", currency: "BOB" }).format(amount)
+  }
+
+  const formatDate = (dateString: string) => {
+    try {
+        return format(new Date(dateString), "dd MMM yyyy", { locale: es })
+    } catch (e) {
+      return dateString
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       
-      <div className="flex items-center justify-between">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Transacciones</h2>
-          <p className="text-muted-foreground">Historial financiero (Caja).</p>
+          <p className="text-muted-foreground">
+             Reporte del periodo: <span className="font-bold text-primary">{dashboardData?.period || "-"}</span>
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" /> Exportar
-            </Button>
-            <CreateTransactionDialog />
+        <CreateTransactionDialog onTransactionCreated={fetchData} />
+      </div>
+
+      {/* BARRA DE FILTROS (Mes/Año) */}
+      <div className="flex items-center gap-2 p-4 bg-muted/20 rounded-lg border">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Periodo:</span>
+        
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-35 bg-background">
+                <SelectValue placeholder="Mes" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="1">Enero</SelectItem>
+                <SelectItem value="2">Febrero</SelectItem>
+                <SelectItem value="3">Marzo</SelectItem>
+                <SelectItem value="4">Abril</SelectItem>
+                <SelectItem value="5">Mayo</SelectItem>
+                <SelectItem value="6">Junio</SelectItem>
+                <SelectItem value="7">Julio</SelectItem>
+                <SelectItem value="8">Agosto</SelectItem>
+                <SelectItem value="9">Septiembre</SelectItem>
+                <SelectItem value="10">Octubre</SelectItem>
+                <SelectItem value="11">Noviembre</SelectItem>
+                <SelectItem value="12">Diciembre</SelectItem>
+            </SelectContent>
+        </Select>
+
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-25 bg-background">
+                <SelectValue placeholder="Año" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="2025">2025</SelectItem>
+                <SelectItem value="2026">2026</SelectItem>
+                <SelectItem value="2027">2027</SelectItem>
+            </SelectContent>
+        </Select>
+      </div>
+
+      {/* CARDS DE RESUMEN (Datos del Backend) */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
+            <ArrowUpCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+                {loading ? "..." : formatMoney(dashboardData?.summary.income || 0)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gastos</CardTitle>
+                <ArrowDownCircle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                    {loading ? "..." : formatMoney(dashboardData?.summary.expense || 0)}
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ganancia Neta</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className={`text-2xl font-bold ${
+                    (dashboardData?.summary.netProfit || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
+                }`}>
+                    {loading ? "..." : formatMoney(dashboardData?.summary.netProfit || 0)}
+                </div>
+            </CardContent>
+        </Card>
+      </div>
+
+      {/* 👇 BUSCADOR LOCAL (Esto elimina las advertencias de unused imports) */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 md:max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+                type="search" 
+                placeholder="Buscar en este mes..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
         </div>
       </div>
 
+      {/* TABLA DE MOVIMIENTOS */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-                <CardTitle>Movimientos Recientes</CardTitle>
-                <CardDescription>
-                    Ingresos y Gastos registrados en el sistema.
-                </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Buscar..." 
-                    className="h-8 w-37.5 lg:w-62.5" 
-                />
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 gap-1">
-                            <Filter className="h-3.5 w-3.5" />
-                            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                                Filtro
-                            </span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuCheckboxItem checked>Ingresos</DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem checked>Gastos</DropdownMenuCheckboxItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-          </div>
+          <CardTitle>Detalle de Movimientos</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {/* Modificamos el título de la columna para ser explícitos */}
-                <TableHead className="w-[40%]">Descripción / Responsable</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((trx) => (
-                <TableRow key={trx.id}>
-                  {/* Aquí mostramos la descripción con énfasis */}
-                  <TableCell className="font-medium">
-                    {trx.description}
-                  </TableCell>
-                  
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs whitespace-nowrap">
-                        {trx.category.replace(/_/g, " ")}
-                    </Badge>
-                  </TableCell>
-                  
-                  <TableCell className="text-muted-foreground whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-3 w-3" />
-                        {trx.date}
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    {trx.type === 'INGRESO' ? (
-                         <div className="flex items-center text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded-full w-fit">
-                            <ArrowUpCircle className="mr-1 h-3 w-3" /> INGRESO
-                         </div>
-                    ) : (
-                        <div className="flex items-center text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded-full w-fit">
-                            <ArrowDownCircle className="mr-1 h-3 w-3" /> GASTO
-                        </div>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell className={`text-right font-bold whitespace-nowrap ${trx.type === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>
-                    {trx.type === 'INGRESO' ? '+' : '-'} Bs. {trx.amount.toFixed(2)}
-                  </TableCell>
-                  
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Ver Detalle</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Eliminar</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {loading ? (
+             <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredTransactions.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            {dashboardData?.transactions.length === 0 
+                                ? "No hay movimientos en este periodo." 
+                                : "No se encontraron resultados con esa búsqueda."}
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    filteredTransactions.map((tx) => (
+                    <TableRow key={tx.id}>
+                        <TableCell className="flex items-center gap-2 whitespace-nowrap">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            {formatDate(tx.date)}
+                        </TableCell>
+                        <TableCell className="font-medium max-w-75 truncate" title={tx.description}>
+                            {tx.description}
+                        </TableCell>
+                        <TableCell>
+                            {tx.category ? (
+                                <Badge variant="outline" className="flex w-fit gap-1 items-center">
+                                    <Tag className="h-3 w-3" />
+                                    {tx.category.replace(/_/g, " ")}
+                                </Badge>
+                            ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                        </TableCell>
+                        <TableCell>
+                            {tx.type === 'INGRESO' ? (
+                                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">
+                                    INGRESO
+                                </Badge>
+                            ) : (
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">
+                                    GASTO
+                                </Badge>
+                            )}
+                        </TableCell>
+                        <TableCell className={`text-right font-bold ${
+                            tx.type === 'INGRESO' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                            {tx.type === 'INGRESO' ? '+' : '-'} {formatMoney(Number(tx.amount))}
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

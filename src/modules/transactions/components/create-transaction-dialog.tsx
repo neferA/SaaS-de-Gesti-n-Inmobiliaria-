@@ -2,7 +2,9 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { PlusCircle, Loader2 } from "lucide-react"
+import { Loader2, DollarSign } from "lucide-react"
+import { format } from "date-fns" // Asegúrate de tener: npm install date-fns
+import { toast } from "sonner"
 
 import { Button } from "@/modules/core/components/button"
 import {
@@ -16,127 +18,102 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/modules/core/components/select"
 
-// 1. SCHEMA AJUSTADO A PRISMA (Modelo Transaction)
+import { transactionsService } from "../services/transactions.service"
+
+// 1. SCHEMA ACTUALIZADO: Usamos los valores EN ESPAÑOL que espera tu Backend
 const formSchema = z.object({
-  amount: z.coerce.number().min(1, "El monto es requerido"),
-  description: z.string().min(3, "Describe el movimiento"), // BD: description
-  type: z.enum(["INGRESO", "GASTO"]),                       // BD: TransactionType
-  category: z.enum([                                        // BD: ExpenseCategory
-    "ALQUILER_MENSUAL", 
-    "GARANTIA", 
-    "AGUA_MEDIDOR_1", 
-    "AGUA_MEDIDOR_2", 
-    "LUZ_GENERAL", 
-    "INTERNET", 
-    "MANTENIMIENTO_GENERAL", 
-    "OTROS"
-  ]).optional(),
+  type: z.enum(["INGRESO", "GASTO"]), // 👈 CAMBIO CLAVE: Español
+  amount: z.coerce.number().min(1, "El monto es obligatorio"),
+  category: z.string().optional(),
+  description: z.string().min(3, "La descripción es requerida"),
+  date: z.string().optional(),
 })
 
-export const CreateTransactionDialog = () => {
+interface CreateTransactionDialogProps {
+  onTransactionCreated?: () => void;
+}
+
+export const CreateTransactionDialog = ({ onTransactionCreated }: CreateTransactionDialogProps) => {
   const [open, setOpen] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      type: "INGRESO",        // Valor por defecto en español
       amount: 0,
-      type: "INGRESO",
       category: "ALQUILER_MENSUAL",
       description: "",
+      date: format(new Date(), "yyyy-MM-dd"), // Fecha de hoy
     },
   })
 
-  function onSubmit(values: any) {
-    console.log("Datos exactos para Prisma Transaction:", values)
-    setTimeout(() => {
-        setOpen(false)
-        form.reset()
-    }, 1000)
+  // Observamos el tipo para cambiar la UI dinámicamente
+  const typeValue = form.watch("type")
+
+  async function onSubmit(values: any) {
+    try {
+      // Preparamos el payload EXACTAMENTE como en tu Yaak
+      const payload = { ...values }
+      
+      // Lógica de limpieza: Si es INGRESO, generalmente no enviamos categoría de gasto
+      // (A menos que tu backend lo permita, pero por limpieza lo quitamos)
+      if (payload.type === "INGRESO") {
+          delete payload.category
+      }
+
+      console.log("Enviando al Backend:", payload) 
+
+      await transactionsService.create(payload)
+
+      toast.success("Transacción registrada")
+      form.reset()
+      setOpen(false)
+      
+      if (onTransactionCreated) onTransactionCreated()
+
+    } catch (error: any) {
+      console.error(error)
+      toast.error("Error al registrar", {
+        description: error.response?.data?.message || "Verifica los datos."
+      })
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 gap-2">
-          <PlusCircle className="h-4 w-4" /> Registrar Pago
+      <DialogTrigger asChild>
+        <Button className="bg-primary hover:bg-primary/90">
+          <DollarSign className="mr-2 h-4 w-4" /> Registrar Movimiento
+        </Button>
       </DialogTrigger>
-
-      <DialogContent className="sm:max-w-106.25">
+      
+      <DialogContent className="sm:max-w-125">
         <DialogHeader>
           <DialogTitle>Nuevo Movimiento</DialogTitle>
-          <DialogDescription>Registra un ingreso o gasto financiero.</DialogDescription>
+          <DialogDescription>
+            Registra ingresos o gastos contables.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
-            <div className="grid grid-cols-2 gap-4">
-                {/* Tipo de Transacción */}
-                <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Tipo</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        <SelectItem value="INGRESO">🟢 Ingreso (+)</SelectItem>
-                        <SelectItem value="GASTO">🔴 Gasto (-)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-
-                {/* Monto */}
-                <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Monto (Bs)</FormLabel>
-                    <FormControl>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            {...field}
-                            value={field.value as number}
-                            onChange={(e) => field.onChange(e.target.value)} 
-                        />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-            </div>
-
-            {/* Categoría (Centros de Costo) */}
+            {/* TIPO: INGRESO o GASTO */}
             <FormField
               control={form.control}
-              name="category"
+              name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoría / Concepto</FormLabel>
+                  <FormLabel>Tipo</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccione concepto" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="ALQUILER_MENSUAL">Alquiler Mensual</SelectItem>
-                      <SelectItem value="GARANTIA">Garantía</SelectItem>
-                      <SelectItem value="AGUA_MEDIDOR_1">Agua (Medidor 1)</SelectItem>
-                      <SelectItem value="AGUA_MEDIDOR_2">Agua (Medidor 2)</SelectItem>
-                      <SelectItem value="LUZ_GENERAL">Luz General</SelectItem>
-                      <SelectItem value="INTERNET">Internet</SelectItem>
-                      <SelectItem value="MANTENIMIENTO_GENERAL">Mantenimiento</SelectItem>
-                      <SelectItem value="OTROS">Otros</SelectItem>
+                      <SelectItem value="INGRESO">🟢 INGRESO</SelectItem>
+                      <SelectItem value="GASTO">🔴 GASTO</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -144,15 +121,86 @@ export const CreateTransactionDialog = () => {
               )}
             />
 
-            {/* Descripción (Texto plano para detalles extra) */}
+            <div className="grid grid-cols-2 gap-4">
+                {/* MONTO */}
+                <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Monto (Bs)</FormLabel>
+                    <FormControl>
+                        <Input 
+                            type="number" 
+                            className="text-lg font-bold" 
+                            {...field}
+                            value={field.value as number}   
+                            onChange={field.onChange}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+
+                {/* FECHA */}
+                <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Fecha</FormLabel>
+                    <FormControl>
+                        <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+
+            {/* CATEGORÍA (Solo visible si es GASTO, o siempre visible según prefieras) */}
+            {typeValue === "GASTO" && (
+                <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Categoría</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {/* 👇 Las mismas categorías de tu DTO/Yaak */}
+                        <SelectItem value="ALQUILER_MENSUAL">Alquiler Mensual</SelectItem>
+                        <SelectItem value="AGUA_MEDIDOR_1">Agua (Medidor 1)</SelectItem>
+                        <SelectItem value="LUZ_GENERAL">Luz General</SelectItem>
+                        <SelectItem value="MANTENIMIENTO">Mantenimiento</SelectItem>
+                        <SelectItem value="OTROS">Otros</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            )}
+
+            {/* DESCRIPCIÓN */}
             <FormField
               control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción Detallada</FormLabel>
+                  <FormLabel>Descripción</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Pago alquiler Dpto 1 Enero - QR" {...field} />
+                    <textarea 
+                      className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="Ej: Pago de agua del mes de Enero"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -160,9 +208,9 @@ export const CreateTransactionDialog = () => {
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
+              <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Movimiento
+                Guardar Transacción
               </Button>
             </DialogFooter>
           </form>
