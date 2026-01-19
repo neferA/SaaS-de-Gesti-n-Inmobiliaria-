@@ -35,7 +35,7 @@ export class TransactionsService {
   }
 
   // 3. REPORTE MENSUAL (El cerebro del Dashboard)
-  async getMonthlyBalance(month: number, year: number) {
+  async getMonthlyBalance(month: number, year: number, user: any) {
     // Definimos el rango exacto del mes (del día 1 al último)
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -50,7 +50,19 @@ export class TransactionsService {
       },
       orderBy: { date: 'desc' },
     });
-
+    const isAdmin = user.role === 'ADMIN' || user.role === 'Administrador' || user.roleId === 1;
+    if (!isAdmin) {
+      // 🛑 SI NO ES ADMIN: Devolvemos CEROS
+      return {
+        period: `${month}/${year}`,
+        summary: {
+          income: 0,      // Bloqueado
+          expense: 0,     // Bloqueado
+          netProfit: 0    // Bloqueado
+        },
+        transactions: transactions // La lista sí la pueden ver (opcional)
+      };
+    }
     // Calculamos Totales en memoria (Rápido y eficiente para <10k registros)
     const totalIncome = transactions
       .filter(t => t.type === TransactionType.INGRESO)
@@ -70,4 +82,5 @@ export class TransactionsService {
       transactions: transactions // Devolvemos la lista para pintar la tabla
     };
   }
+
 }

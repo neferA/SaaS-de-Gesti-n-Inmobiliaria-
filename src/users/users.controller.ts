@@ -7,20 +7,20 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('users')
-@UseGuards(AuthGuard('jwt'))
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+  
+  @Post()
+  create(@Body() createUserDto: CreateUserDto){
+    return this.usersService.create(createUserDto);
+  }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   findAll(@Query() filters: RequestFiltersDto) {
     // filters ya contiene: { page: 1, limit: 10, search: "..." }
     // gracias a las validaciones automáticas.
     return this.usersService.findAll(filters);
-  }
-  @Post()
-  create(@Body() createUserDto: CreateUserDto){
-    //console.log({body});
-    return this.usersService.create(createUserDto);
   }
   @Patch(':id') // 👈 La ruta será /users/uuid-aqui
   update(

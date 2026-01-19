@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, ParseIntPipe, UseGuards, Request } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -24,7 +24,9 @@ export class TransactionsController {
   getReport(
     @Query('month', ParseIntPipe) month: number,
     @Query('year', ParseIntPipe) year: number,
+    @Request() req // 👈 1. Inyectamos la petición
   ) {
-    return this.transactionsService.getMonthlyBalance(month, year);
+    // 2. Pasamos 'req.user' (el usuario logueado) al servicio
+    return this.transactionsService.getMonthlyBalance(month, year, req.user);
   }
 }

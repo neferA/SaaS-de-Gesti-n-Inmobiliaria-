@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginAuthDto } from './dto/login-auth.dto';
+import { CreateUserDto } from 'src/users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -36,17 +37,46 @@ export class AuthService {
       sub: user.id, 
       email: user.email, 
       role: user.role?.name || 'USER', // Guardamos el rol dentro del token
-      fullName: `${user.firstName} ${user.lastName}` 
     };
 
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
-        fullName: `${user.firstName} ${user.lastName}`,
+        firstName: user.firstName, 
+        lastName: user.lastName,
+        username: user.username,
         email: user.email,
         role: user.role?.name
       }
     };
+  }
+  async register(createUserDto: CreateUserDto) {
+    const { email, password } = createUserDto;
+
+    // 1. Verificar si el usuario ya existe
+    const userExists = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (userExists) {
+      throw new BadRequestException('El correo electrónico ya está registrado.');
+    }
+
+    // 2. Encriptar la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+
+    const newUser = await this.prisma.user.create({
+      data: {
+        ...createUserDto,
+        password: hashedPassword,
+      },
+      include: { role: true } // Opcional: para devolver el rol creado
+    });
+
+    // 4. Retornamos el usuario (sin la contraseña)
+    const { password: _, ...result } = newUser;
+    return result;
   }
 }
