@@ -1,7 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Eye, EyeOff, Loader2, Lock, Mail, AlertCircle } from "lucide-react" // Agregué AlertCircle
-import { Link, useNavigate } from "react-router" 
-
+import { Link, useNavigate, useSearchParams } from "react-router" 
+import { toast } from "sonner"
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
 import { Label } from "@/modules/core/components/label"
@@ -13,15 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/modules/core/components/card"
-
-// 1. IMPORTAMOS EL SERVICIO DE AUTENTICACIÓN
 import { authService } from "../services/auth.service"
 
 export const Login = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  
+  const [searchParams] = useSearchParams()
   // 2. ESTADO PARA MANEJAR ERRORES DE LOGIN
   const [error, setError] = useState<string | null>(null)
   
@@ -29,7 +27,17 @@ export const Login = () => {
     email: "",
     password: ""
   })
-
+useEffect(() => {
+    // Preguntamos: ¿La URL tiene ?reason=session_expired?
+    const reason = searchParams.get("reason")
+    
+    if (reason === "session_expired") {
+      // Si sí, mostramos el mensaje bonito
+      toast.error("Tu sesión ha expirado", {
+        description: "Por seguridad, vuelve a ingresar tus credenciales."
+      })
+    }
+  }, [searchParams])
  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

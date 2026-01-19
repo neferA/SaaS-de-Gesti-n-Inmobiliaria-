@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router" // O 'react-router' según tu versión
+import { Link, Outlet, useLocation, useNavigate } from "react-router" 
 import {
   Home,
   Menu,
@@ -22,13 +22,22 @@ import {
 } from "@/modules/core/components/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/modules/core/components/sheet"
 import { Avatar, AvatarFallback, AvatarImage } from "@/modules/core/components/avatar"
+import { authService } from "@/modules/auth/services/auth.service"
+import { useAuth } from "@/modules/auth/hooks/use-auth" // 👈 1. IMPORT THE HOOK
 
 export const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // 👈 2. CHECK IF USER IS ADMIN
+  const { isAdmin } = useAuth();
 
-  // Función auxiliar para resaltar el link activo
+  const handleLogout = () => {
+    authService.logout(); 
+    navigate("/auth/login", { replace: true });
+  }
+
   const getLinkClass = (path: string) => {
-    // Verificamos si la ruta actual empieza con el path (para mantener activo si entras a subrutas)
     const isActive = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path));
     
     return `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
@@ -39,11 +48,10 @@ export const AdminLayout = () => {
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       
-      {/* 1. SIDEBAR (Solo visible en Escritorio) */}
+      {/* 1. SIDEBAR (Desktop) */}
       <div className="hidden border-r bg-muted/40 md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
           
-          {/* Logo / Título */}
           <div className="flex h-14 items-center border-b px-4 lg:h-15 lg:px-6">
             <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
               <Building2 className="h-6 w-6" />
@@ -51,7 +59,6 @@ export const AdminLayout = () => {
             </Link>
           </div>
 
-          {/* Menú de Navegación */}
           <div className="flex-1">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
               
@@ -74,26 +81,33 @@ export const AdminLayout = () => {
                   <DoorOpen className="h-4 w-4" />
                   Unidades
               </Link>
-              <Link to="/dashboard/history" className={getLinkClass("/dashboard/history")}>
-                <History className="h-4 w-4" />
-                Historial
-              </Link>
-              <Link to="/dashboard/users" className={getLinkClass("/dashboard/users")}>
-                <UserCog className="h-4 w-4" />
-                Usuarios Admin
-              </Link>
+
+              {/* 👈 3. HIDE THESE LINKS IF NOT ADMIN */}
+              {isAdmin && (
+                <>
+                    <div className="my-2 border-t border-border/50" /> {/* Visual Separator */}
+                    
+                    <Link to="/dashboard/history" className={getLinkClass("/dashboard/history")}>
+                        <History className="h-4 w-4" />
+                        Historial
+                    </Link>
+                    <Link to="/dashboard/users" className={getLinkClass("/dashboard/users")}>
+                        <UserCog className="h-4 w-4" />
+                        Usuarios Admin
+                    </Link>
+                </>
+              )}
+
             </nav>
           </div>
         </div>
       </div>
 
-      {/* 2. ÁREA PRINCIPAL */}
+      {/* 2. MAIN AREA */}
       <div className="flex flex-col">
         
-        {/* Header Superior (Móvil y Escritorio) */}
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-15 lg:px-6">
           
-          {/* Botón Menú Móvil (Solo visible en pantallas pequeñas) */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="shrink-0 md:hidden">
@@ -113,6 +127,7 @@ export const AdminLayout = () => {
                   Dashboard
                 </Link>
 
+                {/* Mobile Links */}
                 <Link to="/dashboard/transactions" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <CreditCard className="h-5 w-5" />
                   Transacciones
@@ -120,34 +135,36 @@ export const AdminLayout = () => {
                 <Link to="/dashboard/tenants" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
                   <Users className="h-5 w-5" />
                   Inquilinos
-                </Link>              
+                </Link>                      
 
                 <Link to="/dashboard/units" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
-                  <CreditCard className="h-5 w-5" />
+                  <DoorOpen className="h-5 w-5" />
                   Unidades
                 </Link>
                 
-                <Link to="/dashboard/history" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
-                  <UserCog className="h-5 w-5" />
-                  Historial
-                </Link>
-                
-                <Link to="/dashboard/users" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
-                  <UserCog className="h-5 w-5" />
-                  Usuarios Admin
-                </Link>
-                
-                
+                {/* 👈 4. HIDE THESE LINKS IN MOBILE TOO */}
+                {isAdmin && (
+                    <>
+                        <Link to="/dashboard/history" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
+                        <History className="h-5 w-5" />
+                        Historial
+                        </Link>
+                        
+                        <Link to="/dashboard/users" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">
+                        <UserCog className="h-5 w-5" />
+                        Usuarios Admin
+                        </Link>
+                    </>
+                )}
+
               </nav>
             </SheetContent>
           </Sheet>
 
-          {/* Espaciador */}
           <div className="w-full flex-1">
-            {/* Buscador opcional */}
+            {/* Search bar */}
           </div>
 
-          {/* Menú de Usuario */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
@@ -161,18 +178,25 @@ export const AdminLayout = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Perfil</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                  <Link to="/dashboard/profile" className="cursor-pointer w-full">
+                      Perfil
+                  </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Configuración</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600 focus:text-red-600">
+              <DropdownMenuSeparator />              
+              <DropdownMenuItem 
+                onClick={handleLogout} 
+                className="text-red-600 focus:text-red-600 cursor-pointer"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Cerrar Sesión
               </DropdownMenuItem>
+              
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
 
-        {/* 3. CONTENIDO DINÁMICO */}
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-slate-50/50">
            <Outlet />
         </main>

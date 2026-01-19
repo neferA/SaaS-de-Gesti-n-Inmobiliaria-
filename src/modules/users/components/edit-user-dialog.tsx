@@ -31,7 +31,7 @@ const formSchema = z.object({
 })
 
 interface EditUserDialogProps {
-  user: User | null // ✅ Ahora TypeScript sabe que esto es la Interfaz
+  user: User | null 
   open: boolean
   onOpenChange: (open: boolean) => void
   onUserUpdated: () => void

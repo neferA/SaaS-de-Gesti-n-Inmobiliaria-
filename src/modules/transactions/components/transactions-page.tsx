@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react"
 import { 
   Search, ArrowUpCircle, ArrowDownCircle, Calendar, 
-  Loader2, Wallet, Tag, Filter 
+  Loader2, Wallet, Tag, Filter, Lock // 👈 Agregamos icono Lock
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns" 
 import { es } from "date-fns/locale"
-import { io } from "socket.io-client" // 👈 1. Importamos el cliente de WebSockets
+import { io } from "socket.io-client"
 
 import { Input } from "@/modules/core/components/input"
 import { Badge } from "@/modules/core/components/badge"
-
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/modules/core/components/table"
@@ -23,9 +22,14 @@ import {
 
 import { transactionsService, type DashboardResponse } from "../services/transactions.service"
 import { CreateTransactionDialog } from "./create-transaction-dialog"
+import { useAuth } from "@/modules/auth/hooks/use-auth" 
 
 export const TransactionsPage = () => {
+  const { user } = useAuth() // 👈 2. Obtenemos el usuario
   const [loading, setLoading] = useState(true)
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'Administrador' || user?.roleId === 1;
+  const canEdit = isAdmin || user?.role === 'STAFF'; // Staff puede crear, pero no ver ganancias
+
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
   
@@ -34,13 +38,9 @@ export const TransactionsPage = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null)
 
-  // Función para cargar datos (se usa al inicio y al recibir eventos)
   const fetchData = async () => {
     try {
-      // Solo mostramos loading si es la primera carga o cambio de filtro, 
-      // para actualizaciones en tiempo real es mejor que sea silencioso o sutil.
       if (!dashboardData) setLoading(true) 
-      
       const data = await transactionsService.getReport(Number(selectedMonth), Number(selectedYear))
       setDashboardData(data)
     } catch (error) {
@@ -51,37 +51,20 @@ export const TransactionsPage = () => {
     }
   }
 
-  // 👇 2. LÓGICA WEBSOCKET + CARGA INICIAL
   useEffect(() => {
-    // A) Cargar datos iniciales
     fetchData()
-
-    // B) Conectar WebSocket
-    // Asegúrate de que este puerto sea el mismo que tu Backend (3000 o 3001)
     const socket = io("http://localhost:3000") 
 
-    // C) Escuchar evento 'new-transaction'
     socket.on("new-transaction", (data: any) => {
-      console.log("⚡ Transacción recibida en tiempo real:", data)
-      
-      // Notificación visual
-      toast.info("Nuevo movimiento registrado", {
-        description: `${data.description} - Bs ${data.amount}`,
-        duration: 4000, // Duración en pantalla
-      })
-
-      // Recargar datos automáticamente
+      console.log("⚡ Transacción recibida:", data)
+      toast.info("Nuevo movimiento", { description: "Se ha actualizado el reporte." })
       fetchData()
     })
 
-    // D) Limpieza al desmontar o cambiar filtros
-    return () => {
-      socket.disconnect()
-    }
+    return () => { socket.disconnect() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedYear]) // Se reinicia si cambias de mes/año
+  }, [selectedMonth, selectedYear])
 
-  // Filtrado local para el buscador
   const filteredTransactions = dashboardData?.transactions.filter(tx => 
     tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tx.amount.includes(searchTerm) ||
@@ -111,18 +94,19 @@ export const TransactionsPage = () => {
              Reporte del periodo: <span className="font-bold text-primary">{dashboardData?.period || "-"}</span>
           </p>
         </div>
-        <CreateTransactionDialog onTransactionCreated={fetchData} />
+        
+        {/* 👈 4. SOLO MOSTRAMOS BOTÓN SI TIENE PERMISO DE EDICIÓN */}
+        {canEdit && (
+            <CreateTransactionDialog onTransactionCreated={fetchData} />
+        )}
       </div>
 
-      {/* BARRA DE FILTROS (Mes/Año) */}
+      {/* FILTROS */}
       <div className="flex items-center gap-2 p-4 bg-muted/20 rounded-lg border">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">Periodo:</span>
-        
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-35 bg-background">
-                <SelectValue placeholder="Mes" />
-            </SelectTrigger>
+            <SelectTrigger className="w-35 bg-background"><SelectValue placeholder="Mes" /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="1">Enero</SelectItem>
                 <SelectItem value="2">Febrero</SelectItem>
@@ -138,11 +122,8 @@ export const TransactionsPage = () => {
                 <SelectItem value="12">Diciembre</SelectItem>
             </SelectContent>
         </Select>
-
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-25 bg-background">
-                <SelectValue placeholder="Año" />
-            </SelectTrigger>
+            <SelectTrigger className="w-25 bg-background"><SelectValue placeholder="Año" /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="2025">2025</SelectItem>
                 <SelectItem value="2026">2026</SelectItem>
@@ -151,54 +132,68 @@ export const TransactionsPage = () => {
         </Select>
       </div>
 
-      {/* TARJETAS KPI */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
-            <ArrowUpCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-                {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.income || 0)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Gastos</CardTitle>
-                <ArrowDownCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                    {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.expense || 0)}
+      {/* 👈 5. LÓGICA DE VISUALIZACIÓN DE ESTADÍSTICAS FINANCIERAS */}
+      {isAdmin ? (
+          /* VISTA ADMINISTRADOR: Ve todo el dinero */
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
+                <ArrowUpCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                    {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.income || 0)}
                 </div>
-            </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ganancia Neta</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className={`text-2xl font-bold ${
-                    (dashboardData?.summary.netProfit || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
-                }`}>
-                    {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.netProfit || 0)}
-                </div>
-            </CardContent>
-        </Card>
-      </div>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Gastos</CardTitle>
+                    <ArrowDownCircle className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-red-600">
+                        {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.expense || 0)}
+                    </div>
+                </CardContent>
+            </Card>
 
-      {/* BUSCADOR */}
-      <div className="flex items-center gap-2">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ganancia Neta</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className={`text-2xl font-bold ${
+                        (dashboardData?.summary.netProfit || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
+                    }`}>
+                        {loading && !dashboardData ? "..." : formatMoney(dashboardData?.summary.netProfit || 0)}
+                    </div>
+                </CardContent>
+            </Card>
+          </div>
+      ) : (
+          /* VISTA STAFF/OTROS: Ven un resumen bloqueado o nada */
+          <div className="rounded-lg border border-dashed p-8 flex flex-col items-center justify-center text-center bg-muted/10">
+             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Lock className="h-6 w-6 text-muted-foreground" />
+             </div>
+             <h3 className="text-lg font-medium">Información Financiera Protegida</h3>
+             <p className="text-sm text-muted-foreground max-w-sm mt-1">
+                No tienes permisos para ver el balance general de ingresos y gastos.
+             </p>
+          </div>
+      )}
+
+      {/* BUSCADOR Y TABLA (Esto usualmente sí lo ven todos para confirmar operaciones) */}
+      <div className="flex items-center gap-2 mt-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
                 type="search" 
-                placeholder="Buscar en este mes..." 
+                placeholder="Buscar movimiento..." 
                 className="pl-8" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -206,7 +201,6 @@ export const TransactionsPage = () => {
         </div>
       </div>
 
-      {/* TABLA */}
       <Card>
         <CardHeader>
           <CardTitle>Detalle de Movimientos</CardTitle>
@@ -233,7 +227,7 @@ export const TransactionsPage = () => {
                         <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                             {dashboardData?.transactions.length === 0 
                                 ? "No hay movimientos en este periodo." 
-                                : "No se encontraron resultados con esa búsqueda."}
+                                : "No se encontraron resultados."}
                         </TableCell>
                     </TableRow>
                 ) : (
@@ -252,25 +246,23 @@ export const TransactionsPage = () => {
                                     <Tag className="h-3 w-3" />
                                     {tx.category.replace(/_/g, " ")}
                                 </Badge>
-                            ) : (
-                                <span className="text-muted-foreground text-xs">-</span>
-                            )}
+                            ) : (<span className="text-muted-foreground text-xs">-</span>)}
                         </TableCell>
                         <TableCell>
                             {tx.type === 'INGRESO' ? (
-                                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">
-                                    INGRESO
-                                </Badge>
+                                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">INGRESO</Badge>
                             ) : (
-                                <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">
-                                    GASTO
-                                </Badge>
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">GASTO</Badge>
                             )}
                         </TableCell>
                         <TableCell className={`text-right font-bold ${
                             tx.type === 'INGRESO' ? 'text-green-600' : 'text-red-600'
                         }`}>
-                            {tx.type === 'INGRESO' ? '+' : '-'} {formatMoney(Number(tx.amount))}
+                            {/* Ocultamos montos individuales si no es admin, opcional */}
+                            {isAdmin 
+                                ? `${tx.type === 'INGRESO' ? '+' : '-'} ${formatMoney(Number(tx.amount))}`
+                                : '****' 
+                            }
                         </TableCell>
                     </TableRow>
                     ))

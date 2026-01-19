@@ -25,7 +25,16 @@ export interface RegisterPayload {
   password: string;
   role?: string;
 }
+export interface UpdateProfilePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
 
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
 export const authService = {
   login: async (credentials: LoginPayload) => {
     const { data } = await api.post<LoginResponse>("/auth/login", credentials);
@@ -34,23 +43,21 @@ export const authService = {
 
   // 2. Agregamos la función de registro
  register: async (payload: RegisterPayload) => {
-    // 👇 TRUCO: Si no hay rol, enviamos 'viewer' o 'user' por defecto
     const dataToSend = {
         ...payload,
         email: payload.email,
         password: payload.password,
         firstName: payload.firstName,
         lastName: payload.lastName,
-        
-        // 1. Generamos el username basado en el email (ej: juan@test.com -> juan)
         username: payload.email.split('@')[0], 
-        
-        // 2. Enviamos el ID numérico del rol (Según tu JSON, 1 funciona)
         roleId: 2
     };
-    
-    // Asumimos que el backend tiene este endpoint habilitado
     const { data } = await api.post("/users", dataToSend);
+    return data;
+  },
+
+ update: async (id: string, payload: any) => {
+    const { data } = await api.patch(`/users/${id}`, payload);
     return data;
   },
 
