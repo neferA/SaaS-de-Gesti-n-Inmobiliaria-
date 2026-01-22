@@ -179,15 +179,24 @@ export const CreateTenantDialog = ({ onTenantCreated }: CreateTenantDialogProps)
                     </SelectTrigger>
                     <SelectContent>
                         {units.length === 0 ? (
-                            <div className="p-2 text-sm text-muted-foreground">No hay cuartos creados</div>
+                          // Si no hay cuartos, mostramos mensaje
+                          <div className="p-2 text-sm text-muted-foreground">
+                            No hay cuartos creados
+                          </div>
                         ) : (
-                            units.map((unit) => (
-                                <SelectItem key={unit.id} value={unit.id}>
-                                    {unit.name} ({unit.status})
-                                </SelectItem>
-                            ))
+                          // Si hay cuartos, los recorremos
+                          units.map((unit) => (
+                            <SelectItem 
+                              key={unit.id} 
+                              value={unit.id} 
+                              disabled={unit.isOccupied} // Deshabilitamos si está ocupado
+                            >
+                              {/* Mostramos Nombre y Estado */}
+                              {unit.name} ({unit.isOccupied ? "OCUPADO" : "DISPONIBLE"})
+                            </SelectItem>
+                          ))
                         )}
-                    </SelectContent>
+                      </SelectContent>
                 </Select>
             </div>
 

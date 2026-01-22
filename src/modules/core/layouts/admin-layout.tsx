@@ -23,13 +23,11 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/modules/core/components/sheet"
 import { Avatar, AvatarFallback, AvatarImage } from "@/modules/core/components/avatar"
 import { authService } from "@/modules/auth/services/auth.service"
-import { useAuth } from "@/modules/auth/hooks/use-auth" // 👈 1. IMPORT THE HOOK
+import { useAuth } from "@/modules/auth/hooks/use-auth" 
 
 export const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // 👈 2. CHECK IF USER IS ADMIN
   const { isAdmin } = useAuth();
 
   const handleLogout = () => {
@@ -142,7 +140,6 @@ export const AdminLayout = () => {
                   Unidades
                 </Link>
                 
-                {/* 👈 4. HIDE THESE LINKS IN MOBILE TOO */}
                 {isAdmin && (
                     <>
                         <Link to="/dashboard/history" className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground">

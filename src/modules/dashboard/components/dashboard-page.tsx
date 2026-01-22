@@ -39,9 +39,6 @@ export const DashboardPage = () => {
         const now = new Date()
         const month = now.getMonth() + 1
         const year = now.getFullYear()
-
-        // ✅ SOLUCIÓN: Usamos Promise.resolve(null) si no es admin.
-        // Esto mantiene el orden [0, 1, 2] siempre constante y evita errores de tipos.
         const [unitsData, tenantsData, financeData] = await Promise.all([
           unitsService.getAll(),
           tenantsService.getAll(),
@@ -50,7 +47,6 @@ export const DashboardPage = () => {
 
         // 1. Cálculos de Unidades e Inquilinos
         const totalUnits = unitsData.length
-        // Asegúrate de que tu backend devuelve "isOccupied" (booleano) o ajusta a tu propiedad real
         const occupiedUnits = unitsData.filter((u: any) => u.isOccupied).length 
         const occupancyRate = totalUnits > 0 ? (occupiedUnits / totalUnits) * 100 : 0
 
@@ -60,8 +56,6 @@ export const DashboardPage = () => {
           occupancyRate,
           totalTenants: tenantsData.length
         })
-
-        // 2. Datos Financieros (Solo si financeData no es null)
         if (financeData) {
             setFinancials(financeData.summary)
         }
@@ -97,7 +91,7 @@ export const DashboardPage = () => {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Panel Principal</h2>
           <p className="text-muted-foreground">
-            Hola, <span className="font-medium text-foreground">{user?.firstName}</span>Aquí tienes el resumen de hoy.
+            Hola, <span className="font-medium text-foreground">{user?.firstName}..</span>Aquí tienes el resumen de hoy.
           </p>
         </div>
         <div className="flex gap-2">

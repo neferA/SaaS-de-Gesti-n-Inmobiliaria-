@@ -1,7 +1,7 @@
 import axios from "axios";
 // 1. Instancia (Esto está perfecto)
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, 
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api", 
   headers: {
     "Content-Type": "application/json",
   },

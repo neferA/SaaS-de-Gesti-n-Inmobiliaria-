@@ -53,7 +53,13 @@ export const TransactionsPage = () => {
 
   useEffect(() => {
     fetchData()
-    const socket = io("http://localhost:3000") 
+    // 1. Obtenemos la IP real desde la variable de entorno
+    // Si no existe (ej. en desarrollo puro), usa localhost como respaldo
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+    console.log("🔌 Conectando WebSocket a:", socketUrl); // Log para depurar en el celular
+
+    // 2. Conectamos
+    const socket = io(socketUrl) 
 
     socket.on("new-transaction", (data: any) => {
       console.log("⚡ Transacción recibida:", data)
