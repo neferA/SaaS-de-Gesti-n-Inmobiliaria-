@@ -1,24 +1,36 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { IoAdapter } from '@nestjs/platform-socket.io'; //Importar el adaptador de Socket.IO
+import { IoAdapter } from '@nestjs/platform-socket.io'; 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-    app.enableCors({
-      origin: 'http://localhost:5173', // La URL exacta de tu React (Vite)
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      credentials: true, // Permite envío de cookies o headers de autorización
+
+  // 1. CONFIGURACIÓN CORS (Adaptada para Red Local)
+  app.enableCors({
+    origin: true, 
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
   });
+
+  // 2. VALIDACIONES GLOBALES
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true, // Elimina datos que no estén en el DTO (limpieza automática)
-    forbidNonWhitelisted: true, // Lanza error si envían datos extra
-    transform: true, // Convierte tipos automáticamente si es necesario
+    whitelist: true,            // Limpia datos basura del JSON
+    forbidNonWhitelisted: true, // Lanza error 400 si envían campos extra
+    transform: true,            // Convierte "1" a numero 1 automáticamente
   }));
+
   app.setGlobalPrefix('api');
+
+  // 4. WEBSOCKETS
   app.useWebSocketAdapter(new IoAdapter(app)); 
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  // 5. LEVANTAR SERVIDOR EN RED (0.0.0.0)
+  const port = process.env.PORT ?? 3000;
+  
+  // '0.0.0.0' es CRUCIAL para exponer el backend a la red Wi-Fi
+  await app.listen(port, '0.0.0.0');
+  
+  console.log(`🚀 Backend corriendo en: ${await app.getUrl()}`);
 }
 bootstrap();
