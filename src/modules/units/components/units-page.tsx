@@ -35,7 +35,10 @@ export const UnitsPage = () => {
   const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // 3. CARGAR DATOS
+  // 3. ESTADO PARA BUSCADOR
+  const [searchTerm, setSearchTerm] = useState("")
+
+  // 4. CARGAR DATOS
   const fetchUnits = async () => {
     try {
       setLoading(true)
@@ -53,18 +56,27 @@ export const UnitsPage = () => {
     fetchUnits()
   }, [])
 
-  // 4. LÓGICA VISUAL (Colores según isOccupied)
+  // 5. LÓGICA DE FILTRADO (Nombre o Tipo)
+  const filteredUnits = units.filter(unit => {
+    const term = searchTerm.toLowerCase()
+    return (
+        unit.name.toLowerCase().includes(term) || // Buscar por nombre (ej: "Dpto 1")
+        unit.type.toLowerCase().includes(term)    // Buscar por tipo (ej: "Cuarto")
+    )
+  })
+
+  // 6. LÓGICA VISUAL
   const getStatusColor = (isOccupied: boolean) => {
     return isOccupied 
-        ? "bg-blue-500 hover:bg-blue-600" // Ocupado
-        : "bg-green-500 hover:bg-green-600"; // Disponible
+        ? "bg-blue-500 hover:bg-blue-600" 
+        : "bg-green-500 hover:bg-green-600"; 
   }
 
   const getStatusText = (isOccupied: boolean) => {
     return isOccupied ? "OCUPADO" : "DISPONIBLE";
   }
 
-  // 5. LÓGICA DE ELIMINACIÓN
+  // 7. LÓGICA DE ELIMINACIÓN
   const confirmDelete = async () => {
     if (!unitToDelete) return
     setIsDeleting(true)
@@ -98,7 +110,13 @@ export const UnitsPage = () => {
       <div className="flex items-center gap-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar unidad..." className="pl-8" />
+            <Input 
+                type="search" 
+                placeholder="Buscar unidad..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
         </div>
       </div>
 
@@ -106,7 +124,9 @@ export const UnitsPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Inventario</CardTitle>
-          <CardDescription>Total: {units.length} unidades registradas.</CardDescription>
+          <CardDescription>
+             Mostrando {filteredUnits.length} de {units.length} unidades registradas.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -125,17 +145,22 @@ export const UnitsPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {units.length === 0 ? (
+                {/* Usamos filteredUnits en lugar de units */}
+                {filteredUnits.length === 0 ? (
                     <TableRow>
                         <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                             <div className="flex flex-col items-center gap-2">
                                 <Building className="h-8 w-8 text-muted-foreground/50" />
-                                <p>No hay unidades creadas aún.</p>
+                                <p>
+                                    {searchTerm 
+                                        ? "No se encontraron resultados." 
+                                        : "No hay unidades creadas aún."}
+                                </p>
                             </div>
                         </TableCell>
                     </TableRow>
                 ) : (
-                    units.map((unit) => (
+                    filteredUnits.map((unit) => (
                     <TableRow key={unit.id}>
                         <TableCell className="font-medium flex items-center gap-2">
                             <Home className="h-4 w-4 text-muted-foreground" />

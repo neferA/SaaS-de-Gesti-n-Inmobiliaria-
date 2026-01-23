@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
-import { Search, MoreHorizontal, FileEdit, Phone, CreditCard, Loader2, UserX } from "lucide-react"
-import { toast } from "sonner" // Importar Toast
+import { Search, MoreHorizontal, FileEdit, Phone, CreditCard, Loader2, UserX, LogOut } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/modules/core/components/button"
 import { Input } from "@/modules/core/components/input"
@@ -17,7 +17,6 @@ import {
 import { CreateTenantDialog } from "./create-tenant-dialog"
 import { EditTenantDialog } from "./edit-tenant-dialog"
 import { tenantsService, type Tenant } from "../services/tenants.service"
-import { LogOut } from "lucide-react" // Importar icono LogOut
 import { CheckoutTenantDialog } from "./checkout-tenant-dialog"
 
 export const TenantsPage = () => {
@@ -25,6 +24,9 @@ export const TenantsPage = () => {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)  
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // 1. ESTADO PARA EL BUSCADOR
+  const [searchTerm, setSearchTerm] = useState("")
 
   const fetchTenants = async () => {
     try {
@@ -43,14 +45,23 @@ export const TenantsPage = () => {
     fetchTenants()
   }, [])
 
-  // 1. Abrir modal de edición
+  // 2. LÓGICA DE FILTRADO (Nombre, CI o Teléfono)
+  const filteredTenants = tenants.filter(tenant => {
+    const term = searchTerm.toLowerCase()
+    return (
+        tenant.fullName.toLowerCase().includes(term) || // Busca por nombre
+        tenant.ci.toLowerCase().includes(term) ||       // Busca por CI
+        (tenant.phone && tenant.phone.includes(term))   // Busca por teléfono
+    )
+  })
+
   const handleEditClick = (tenant: Tenant) => {
     setSelectedTenant(tenant)
     setIsEditOpen(true)
   }
-
   
   const [tenantToCheckout, setTenantToCheckout] = useState<Tenant | null>(null)
+
   return (
     <div className="flex flex-col gap-6">
       
@@ -65,7 +76,14 @@ export const TenantsPage = () => {
       <div className="flex items-center gap-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar..." className="pl-8" />
+            {/* 3. CONECTAMOS EL INPUT AL ESTADO */}
+            <Input 
+                type="search" 
+                placeholder="Buscar por nombre, CI o teléfono..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
         </div>
       </div>
 
@@ -73,7 +91,8 @@ export const TenantsPage = () => {
         <CardHeader>
           <CardTitle>Listado General</CardTitle>
           <CardDescription>
-            Tienes {tenants.length} inquilinos registrados.
+            {/* Mostramos cuántos hay filtrados vs el total */}
+            Mostrando {filteredTenants.length} de {tenants.length} inquilinos registrados.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,17 +111,22 @@ export const TenantsPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tenants.length === 0 ? (
+                {/* 4. USAMOS LA LISTA FILTRADA AQUÍ */}
+                {filteredTenants.length === 0 ? (
                     <TableRow>
                         <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
                             <div className="flex flex-col items-center gap-2">
                                 <UserX className="h-8 w-8 text-muted-foreground/50" />
-                                <p>No hay inquilinos registrados.</p>
+                                <p>
+                                    {searchTerm 
+                                        ? "No se encontraron resultados para tu búsqueda." 
+                                        : "No hay inquilinos registrados."}
+                                </p>
                             </div>
                         </TableCell>
                     </TableRow>
                 ) : (
-                    tenants.map((tenant) => (
+                    filteredTenants.map((tenant) => (
                     <TableRow key={tenant.id}>
                         <TableCell className="font-medium">{tenant.fullName}</TableCell>
                         <TableCell>
@@ -134,8 +158,6 @@ export const TenantsPage = () => {
                               <LogOut className="mr-2 h-4 w-4 text-orange-600" /> 
                               Dar de Baja
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>

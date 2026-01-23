@@ -171,51 +171,61 @@ export const CreateTenantDialog = ({ onTenantCreated }: CreateTenantDialogProps)
           <p className="text-sm font-medium text-muted-foreground">Datos del Alquiler</p>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-                <Label>Cuarto / Unidad *</Label>
-                <Select onValueChange={handleUnitChange} value={formData.unitId}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {units.length === 0 ? (
-                          // Si no hay cuartos, mostramos mensaje
-                          <div className="p-2 text-sm text-muted-foreground">
-                            No hay cuartos creados
+    
+          {/* 1. SELECCIÓN DE UNIDAD (Ocupa las 2 columnas para que el menú se abra cómodo) */}
+          <div className="col-span-2 space-y-2">
+              <Label>Cuarto / Unidad *</Label>
+              <Select onValueChange={handleUnitChange} value={formData.unitId}>
+                  <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccionar cuarto disponible..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {units.length === 0 ? (
+                          <div className="p-4 text-sm text-center text-muted-foreground">
+                              No hay cuartos registrados.
                           </div>
-                        ) : (
-                          // Si hay cuartos, los recorremos
+                      ) : (
                           units.map((unit) => (
-                            <SelectItem 
-                              key={unit.id} 
-                              value={unit.id} 
-                              disabled={unit.isOccupied} // Deshabilitamos si está ocupado
-                            >
-                              {/* Mostramos Nombre y Estado */}
-                              {unit.name} ({unit.isOccupied ? "OCUPADO" : "DISPONIBLE"})
-                            </SelectItem>
+                              <SelectItem 
+                                  key={unit.id} 
+                                  value={unit.id} 
+                                  disabled={unit.isOccupied}
+                                  className="cursor-pointer"
+                              >
+                                  <span className="flex justify-between w-full gap-2">
+                                      <span className="font-medium">{unit.name}</span>
+                                      {/* Mostramos el precio sugerido como ayuda visual */}
+                                      <span className="text-muted-foreground text-xs">
+                                          ({unit.isOccupied ? "OCUPADO" : `$${unit.basePrice}`})
+                                      </span>
+                                  </span>
+                              </SelectItem>
                           ))
-                        )}
-                      </SelectContent>
-                </Select>
-            </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="price">Precio Acordado *</Label>
-                <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                    <Input
-                        id="price"
-                        type="number"
-                        className="pl-7"
-                        placeholder="0.00"
-                        required
-                        value={formData.price}
-                        onChange={(e) => handleChange("price", e.target.value)}
-                    />
-                </div>
-            </div>
+                      )}
+                  </SelectContent>
+              </Select>
           </div>
+
+          {/* 2. PRECIO ACORDADO (Ocupa 1 columna) */}
+          <div className="space-y-2">
+              <Label htmlFor="price">Precio Acordado *</Label>
+              <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground font-semibold">Bs</span>
+                  <Input
+                      id="price"
+                      type="number"
+                      className="pl-9 font-mono" // Fuente mono para números alineados
+                      placeholder="0.00"
+                      required
+                      value={formData.price}
+                      onChange={(e) => handleChange("price", e.target.value)}
+                  />
+              </div>
+              <p className="text-[0.8rem] text-muted-foreground">
+                  Monto mensual del alquiler.
+              </p>
+          </div>
+      </div>
 
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={loading} className="w-full sm:w-auto">

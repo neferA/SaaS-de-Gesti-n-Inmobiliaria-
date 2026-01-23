@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Loader2, DollarSign } from "lucide-react"
-import { format } from "date-fns" // Asegúrate de tener: npm install date-fns
+import { format } from "date-fns" 
 import { toast } from "sonner"
 
 import { Button } from "@/modules/core/components/button"
@@ -20,11 +20,10 @@ import {
 
 import { transactionsService } from "../services/transactions.service"
 
-// 1. SCHEMA ACTUALIZADO: Usamos los valores EN ESPAÑOL que espera tu Backend
 const formSchema = z.object({
-  type: z.enum(["INGRESO", "GASTO"]), // 👈 CAMBIO CLAVE: Español
+  type: z.enum(["INGRESO", "GASTO"]),
   amount: z.coerce.number().min(1, "El monto es obligatorio"),
-  category: z.string().optional(),
+  category: z.string().min(1, "La categoría es requerida"), // 👈 Ahora es requerida siempre
   description: z.string().min(3, "La descripción es requerida"),
   date: z.string().optional(),
 })
@@ -39,27 +38,32 @@ export const CreateTransactionDialog = ({ onTransactionCreated }: CreateTransact
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: "INGRESO",        // Valor por defecto en español
+      type: "INGRESO",
       amount: 0,
-      category: "ALQUILER_MENSUAL",
+      category: "ALQUILER_MENSUAL", // Valor inicial correcto
       description: "",
-      date: format(new Date(), "yyyy-MM-dd"), // Fecha de hoy
+      date: format(new Date(), "yyyy-MM-dd"),
     },
   })
 
-  // Observamos el tipo para cambiar la UI dinámicamente
+  // 1. Observamos el cambio de tipo
   const typeValue = form.watch("type")
+
+  // 2. EFECTO AUTOMÁTICO: Cambiar categoría por defecto según el tipo
+  useEffect(() => {
+    if (typeValue === "INGRESO") {
+        form.setValue("category", "ALQUILER_MENSUAL")
+    } else {
+        form.setValue("category", "OTROS") // O la categoría por defecto de gastos que prefieras
+    }
+  }, [typeValue, form])
 
   async function onSubmit(values: any) {
     try {
-      // Preparamos el payload EXACTAMENTE como en tu Yaak
       const payload = { ...values }
       
-      // Lógica de limpieza: Si es INGRESO, generalmente no enviamos categoría de gasto
-      // (A menos que tu backend lo permita, pero por limpieza lo quitamos)
-      if (payload.type === "INGRESO") {
-          delete payload.category
-      }
+      // ⚠️ IMPORTANTE: Eliminamos el 'if' que borraba la categoría.
+      // Ahora SIEMPRE enviamos 'ALQUILER_MENSUAL' u otra categoría.
 
       console.log("Enviando al Backend:", payload) 
 
@@ -98,7 +102,7 @@ export const CreateTransactionDialog = ({ onTransactionCreated }: CreateTransact
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
-            {/* TIPO: INGRESO o GASTO */}
+            {/* TIPO */}
             <FormField
               control={form.control}
               name="type"
@@ -134,8 +138,8 @@ export const CreateTransactionDialog = ({ onTransactionCreated }: CreateTransact
                             type="number" 
                             className="text-lg font-bold" 
                             {...field}
-                            value={field.value as number}   
-                            onChange={field.onChange}
+                            value={(field.value as number) || ''} 
+                            onChange={(e) => field.onChange(e.target.value)}
                         />
                     </FormControl>
                     <FormMessage />
@@ -159,34 +163,44 @@ export const CreateTransactionDialog = ({ onTransactionCreated }: CreateTransact
                 />
             </div>
 
-            {/* CATEGORÍA (Solo visible si es GASTO, o siempre visible según prefieras) */}
-            {typeValue === "GASTO" && (
-                <FormField
+            {/* CATEGORÍA ( visible para AMBOS, pero con opciones diferentes) */}
+            <FormField
                 control={form.control}
                 name="category"
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Categoría</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Selecciona..." />
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                        {/* 👇 Las mismas categorías de tu DTO/Yaak */}
-                        <SelectItem value="ALQUILER_MENSUAL">Alquiler Mensual</SelectItem>
-                        <SelectItem value="AGUA_MEDIDOR_1">Agua (Medidor 1)</SelectItem>
-                        <SelectItem value="LUZ_GENERAL">Luz General</SelectItem>
-                        <SelectItem value="MANTENIMIENTO">Mantenimiento</SelectItem>
-                        <SelectItem value="OTROS">Otros</SelectItem>
+                        {typeValue === "INGRESO" ? (
+                            // 🟢 OPCIONES PARA INGRESO
+                            <>
+                                <SelectItem value="ALQUILER_MENSUAL">Alquiler Mensual</SelectItem>
+                                <SelectItem value="GARANTIA">Garantía / Depósito</SelectItem>
+                                <SelectItem value="OTROS_INGRESOS">Otros Ingresos</SelectItem>
+                            </>
+                        ) : (
+                            // 🔴 OPCIONES PARA GASTO
+                            <>
+                                <SelectItem value="AGUA_MEDIDOR_1">Agua (Medidor 1)</SelectItem>
+                                <SelectItem value="AGUA_MEDIDOR_2">Agua (Medidor 2)</SelectItem>
+                                <SelectItem value="LUZ_GENERAL">Luz General</SelectItem>
+                                <SelectItem value="INTERNET">Internet</SelectItem>
+                                <SelectItem value="MANTENIMIENTO_GENERAL">Mantenimiento</SelectItem>
+                                <SelectItem value="OTROS">Otros Gastos</SelectItem>
+                            </>
+                        )}
                         </SelectContent>
                     </Select>
                     <FormMessage />
                     </FormItem>
                 )}
-                />
-            )}
+            />
 
             {/* DESCRIPCIÓN */}
             <FormField
@@ -197,8 +211,8 @@ export const CreateTransactionDialog = ({ onTransactionCreated }: CreateTransact
                   <FormLabel>Descripción</FormLabel>
                   <FormControl>
                     <textarea 
-                      className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      placeholder="Ej: Pago de agua del mes de Enero"
+                      className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder={typeValue === "INGRESO" ? "Ej: Cobro alquiler Enero Dpto 1" : "Ej: Pago factura de luz"}
                       {...field}
                     />
                   </FormControl>

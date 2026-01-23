@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { 
   Search, ArrowUpCircle, ArrowDownCircle, Calendar, 
-  Loader2, Wallet, Tag, Filter, Lock // 👈 Agregamos icono Lock
+  Loader2, Wallet, Tag, Filter, Lock
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns" 
@@ -25,10 +25,10 @@ import { CreateTransactionDialog } from "./create-transaction-dialog"
 import { useAuth } from "@/modules/auth/hooks/use-auth" 
 
 export const TransactionsPage = () => {
-  const { user } = useAuth() // 👈 2. Obtenemos el usuario
+  const { user } = useAuth() 
   const [loading, setLoading] = useState(true)
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'Administrador' || user?.roleId === 1;
-  const canEdit = isAdmin || user?.role === 'STAFF'; // Staff puede crear, pero no ver ganancias
+  const canEdit = isAdmin || user?.role === 'STAFF'; 
 
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
@@ -41,6 +41,10 @@ export const TransactionsPage = () => {
   const fetchData = async () => {
     try {
       if (!dashboardData) setLoading(true) 
+      
+      // 🔍 DEBUG: Verificamos qué enviamos al backend
+      console.log(`📡 Solicitando reporte: Mes ${selectedMonth}, Año ${selectedYear}`)
+
       const data = await transactionsService.getReport(Number(selectedMonth), Number(selectedYear))
       setDashboardData(data)
     } catch (error) {
@@ -53,12 +57,10 @@ export const TransactionsPage = () => {
 
   useEffect(() => {
     fetchData()
-    // 1. Obtenemos la IP real desde la variable de entorno
-    // Si no existe (ej. en desarrollo puro), usa localhost como respaldo
+    
     const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
-    console.log("🔌 Conectando WebSocket a:", socketUrl); // Log para depurar en el celular
+    // console.log("🔌 Conectando WebSocket a:", socketUrl); 
 
-    // 2. Conectamos
     const socket = io(socketUrl) 
 
     socket.on("new-transaction", (data: any) => {
@@ -97,11 +99,10 @@ export const TransactionsPage = () => {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Transacciones</h2>
           <p className="text-muted-foreground">
-             Reporte del periodo: <span className="font-bold text-primary">{dashboardData?.period || "-"}</span>
+              Reporte del periodo: <span className="font-bold text-primary">{dashboardData?.period || "-"}</span>
           </p>
         </div>
         
-        {/* 👈 4. SOLO MOSTRAMOS BOTÓN SI TIENE PERMISO DE EDICIÓN */}
         {canEdit && (
             <CreateTransactionDialog onTransactionCreated={fetchData} />
         )}
@@ -111,9 +112,14 @@ export const TransactionsPage = () => {
       <div className="flex items-center gap-2 p-4 bg-muted/20 rounded-lg border">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">Periodo:</span>
+        
+        {/* SELECTOR DE MES (Con opción anual) */}
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-35 bg-background"><SelectValue placeholder="Mes" /></SelectTrigger>
+            <SelectTrigger className="w-45 bg-background"> {/* Ancho corregido */}
+                <SelectValue placeholder="Mes" />
+            </SelectTrigger>
             <SelectContent>
+                <SelectItem value="0" className="font-bold text-primary">-- Todo el Año --</SelectItem>
                 <SelectItem value="1">Enero</SelectItem>
                 <SelectItem value="2">Febrero</SelectItem>
                 <SelectItem value="3">Marzo</SelectItem>
@@ -128,8 +134,12 @@ export const TransactionsPage = () => {
                 <SelectItem value="12">Diciembre</SelectItem>
             </SelectContent>
         </Select>
+
+        {/* SELECTOR DE AÑO */}
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-25 bg-background"><SelectValue placeholder="Año" /></SelectTrigger>
+            <SelectTrigger className="w-30 bg-background">
+                <SelectValue placeholder="Año" />
+            </SelectTrigger>
             <SelectContent>
                 <SelectItem value="2025">2025</SelectItem>
                 <SelectItem value="2026">2026</SelectItem>
@@ -138,9 +148,8 @@ export const TransactionsPage = () => {
         </Select>
       </div>
 
-      {/* 👈 5. LÓGICA DE VISUALIZACIÓN DE ESTADÍSTICAS FINANCIERAS */}
+      {/* VISUALIZACIÓN DE ESTADÍSTICAS */}
       {isAdmin ? (
-          /* VISTA ADMINISTRADOR: Ve todo el dinero */
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -181,7 +190,6 @@ export const TransactionsPage = () => {
             </Card>
           </div>
       ) : (
-          /* VISTA STAFF/OTROS: Ven un resumen bloqueado o nada */
           <div className="rounded-lg border border-dashed p-8 flex flex-col items-center justify-center text-center bg-muted/10">
              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Lock className="h-6 w-6 text-muted-foreground" />
@@ -193,7 +201,7 @@ export const TransactionsPage = () => {
           </div>
       )}
 
-      {/* BUSCADOR Y TABLA (Esto usualmente sí lo ven todos para confirmar operaciones) */}
+      {/* BUSCADOR Y TABLA */}
       <div className="flex items-center gap-2 mt-2">
         <div className="relative flex-1 md:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -264,7 +272,6 @@ export const TransactionsPage = () => {
                         <TableCell className={`text-right font-bold ${
                             tx.type === 'INGRESO' ? 'text-green-600' : 'text-red-600'
                         }`}>
-                            {/* Ocultamos montos individuales si no es admin, opcional */}
                             {isAdmin 
                                 ? `${tx.type === 'INGRESO' ? '+' : '-'} ${formatMoney(Number(tx.amount))}`
                                 : '****' 
